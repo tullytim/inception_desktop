@@ -13,5 +13,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuAction: (callback) => ipcRenderer.on('menu:action', callback),
   
   // Remove listeners
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
+  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  
+  // Database functions
+  createConversation: (title) => ipcRenderer.invoke('db:create-conversation', title),
+  saveMessage: (role, content) => ipcRenderer.invoke('db:save-message', role, content),
+  getRecentChats: () => ipcRenderer.invoke('db:get-recent-chats'),
+  getConversationMessages: (conversationId) => ipcRenderer.invoke('db:get-conversation-messages', conversationId),
+  newChat: () => ipcRenderer.invoke('db:new-chat'),
+  debugDatabase: () => ipcRenderer.invoke('db:debug-contents')
 });

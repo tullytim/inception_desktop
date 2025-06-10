@@ -121,19 +121,200 @@
         padding: 10px 8px 10px 8px;
       }
     }
+    
+    .sidebar {
+      position: fixed;
+      left: -280px;
+      top: 0;
+      width: 280px;
+      height: 100vh;
+      background: #23262f;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+      transition: left 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar.open {
+      left: 0;
+    }
+    .sidebar-header {
+      padding: 24px 20px 16px 20px;
+      border-bottom: 1px solid #2d3142;
+    }
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.4em;
+      font-weight: 700;
+      color: #fff;
+    }
+    .sidebar-logo img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+    .sidebar-menu {
+      flex: 1;
+      padding: 20px 0;
+    }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: #b0b3c0;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-size: 1em;
+    }
+    .sidebar-item:hover {
+      background: #2d3142;
+      color: #6ee7b7;
+    }
+    .sidebar-item.active {
+      background: #2d3142;
+      color: #6ee7b7;
+    }
+    .hamburger-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      background: #23262f;
+      border: none;
+      color: #e6e6e6;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      transition: background 0.2s;
+    }
+    .hamburger-btn:hover {
+      background: #2d3142;
+    }
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    .sidebar-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .main-content {
+      transition: margin-left 0.3s ease;
+    }
+    .main-content.sidebar-open {
+      margin-left: 280px;
+    }
+    @media (max-width: 768px) {
+      .main-content.sidebar-open {
+        margin-left: 0;
+      }
+    }
+    .recent-chat-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-left: 3px solid transparent;
+    }
+    .recent-chat-item:hover {
+      background: #2d3142;
+      border-left-color: #6ee7b7;
+    }
+    .recent-chat-title {
+      color: #e6e6e6;
+      font-size: 0.9em;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .recent-chat-date {
+      color: #b0b3c0;
+      font-size: 0.8em;
+    }
+    .recents-container {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .sidebar-section-title {
+      padding: 8px 20px 4px 20px;
+      color: #b0b3c0;
+      font-size: 0.8em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
-  <div style="display: flex; flex-direction: column; align-items: center; margin-top: 32px;">
-    <img src="images/inception.png" alt="Inception Logo" style="width:56px;height:56px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.10);margin-bottom:18px;" />
-  </div>
-  <div id="results"></div>
-  <form id="chat-form" class="chat-input-area" autocomplete="off">
-    <div class="chat-input-area-inner">
-      <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" />
-      <button type="submit" aria-label="Send">Send</button>
+  <button class="hamburger-btn" id="hamburger-btn">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+  
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+  
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <img src="images/inception.png" alt="Inception Logo" />
+        Inception
+      </div>
     </div>
-  </form>
+    <div class="sidebar-menu">
+      <button class="sidebar-item active" data-action="new-chat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        New Chat
+      </button>
+      <button class="sidebar-item" data-action="recents">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/>
+        </svg>
+        Recents
+      </button>
+      <div class="sidebar-section-title">Recent Chats</div>
+      <div class="recents-container" id="recents-list">
+        <!-- Recent chats will be loaded here -->
+      </div>
+      <button class="sidebar-item" data-action="settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 8a4 4 0 100 8 4 4 0 000-8zM12 6a6 6 0 110 12 6 6 0 010-12z"/>
+          <path d="M12 1l2.25 2.25L12 5.5 9.75 3.25 12 1zM19 12l2.25-2.25L23.5 12l-2.25 2.25L19 12zM12 23l-2.25-2.25L12 18.5l2.25 2.25L12 23zM5 12L2.75 9.75.5 12l2.25 2.25L5 12z"/>
+        </svg>
+        Settings
+      </button>
+    </div>
+  </div>
+  
+  <div class="main-content" id="main-content">
+    <div style="display: flex; flex-direction: column; align-items: center; margin-top: 32px;">
+      <img src="images/inception.png" alt="Inception Logo" style="width:56px;height:56px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.10);margin-bottom:18px;" />
+    </div>
+    <div id="results"></div>
+    <form id="chat-form" class="chat-input-area" autocomplete="off">
+      <div class="chat-input-area-inner">
+        <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" />
+        <button type="submit" aria-label="Send">Send</button>
+      </div>
+    </form>
+  </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -193,5 +374,77 @@
      marked.use({html:true, gfm:true});
   </script>
   <script src="renderer.js"></script>
+  <script>
+    // Sidebar toggle functionality
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const mainContent = document.getElementById('main-content');
+    
+    function toggleSidebar() {
+      const isOpen = sidebar.classList.contains('open');
+      
+      if (isOpen) {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+        mainContent.classList.remove('sidebar-open');
+      } else {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+        mainContent.classList.add('sidebar-open');
+      }
+    }
+    
+    hamburgerBtn.addEventListener('click', toggleSidebar);
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+    
+    // Sidebar menu actions
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        // Remove active class from all items
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        // Add active class to clicked item
+        e.target.classList.add('active');
+        
+        const action = e.target.dataset.action;
+        switch(action) {
+          case 'new-chat':
+            // Clear the chat
+            document.getElementById('results').innerHTML = '';
+            // Clear the input field
+            document.getElementById('chat-input').value = '';
+            // Start new chat in database
+            if (window.electronAPI) {
+              window.electronAPI.newChat();
+            }
+            // Dispatch event to refresh recent chats
+            setTimeout(() => {
+              document.dispatchEvent(new CustomEvent('refreshRecentChats'));
+            }, 100);
+            break;
+          case 'recents':
+            // TODO: Show recent chats
+            console.log('Recents clicked');
+            break;
+          case 'settings':
+            // TODO: Show settings
+            console.log('Settings clicked');
+            // Debug: Check database contents
+            if (window.electronAPI) {
+              window.electronAPI.debugDatabase().then(contents => {
+                console.log('Database debug contents:', contents);
+                alert(`Database contents:\nConversations: ${contents.conversations?.length || 0}\nMessages: ${contents.messages?.length || 0}\nCurrent conversation ID: ${contents.currentConversationId || 'null'}`);
+              });
+            }
+            break;
+        }
+        
+        // Close sidebar on mobile after selection
+        if (window.innerWidth <= 768) {
+          toggleSidebar();
+        }
+      });
+    });
+  </script>
 </body>
 </html>
