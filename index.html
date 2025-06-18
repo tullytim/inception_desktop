@@ -113,6 +113,13 @@
       box-shadow: 0 2px 16px rgba(59,130,246,0.13);
     }
     
+    .chat-input-area svg {
+      width: 22px;
+      height: 22px;
+      fill: #fff;
+      pointer-events: none;
+    }
+    
     @media (max-width: 700px) {
       #results {
         padding: 16px 0 80px 0;
@@ -120,6 +127,7 @@
       .chat-input-area {
         padding: 10px 8px 10px 8px;
       }
+      .messages { padding: 0 10px; }
     }
     
     .sidebar {
@@ -311,7 +319,9 @@
     <form id="chat-form" class="chat-input-area" autocomplete="off">
       <div class="chat-input-area-inner">
         <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off" />
-        <button type="submit" aria-label="Send">Send</button>
+        <button type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24"><path d="M2 21l21-9-21-9v7l15 2-15 2z"/></svg>
+        </button>
       </div>
     </form>
   </div>
