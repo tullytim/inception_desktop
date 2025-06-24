@@ -92,6 +92,30 @@
       border: 1.5px solid #6ee7b7;
     }
     
+    .model-select {
+      background: #181a20;
+      border: none;
+      color: #e6e6e6;
+      font-size: 1em;
+      padding: 10px 12px;
+      border-radius: 10px;
+      outline: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: box-shadow 0.2s, border 0.2s;
+      cursor: pointer;
+      min-width: 100px;
+    }
+    
+    .model-select:focus {
+      box-shadow: 0 2px 16px rgba(59,130,246,0.13);
+      border: 1.5px solid #6ee7b7;
+    }
+    
+    .model-select option {
+      background: #23262f;
+      color: #e6e6e6;
+    }
+    
     .chat-input-area button {
       background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%);
       color: #fff;
@@ -322,6 +346,9 @@
         <button type="submit" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M2 21l21-9-21-9v7l15 2-15 2z"/></svg>
         </button>
+        <select id="model-select" class="model-select">
+          <option value="mercury-coder-small">Mercury Coder</option>
+        </select>
       </div>
     </form>
   </div>

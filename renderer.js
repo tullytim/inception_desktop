@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const chatForm = document.getElementById('chat-form');
   const chatInput = document.getElementById('chat-input');
+  const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
 
   const API_KEY = 'sk_aeaa96f1fe26076c7b3135a9dce704b7';
@@ -92,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
   chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const userMsg = chatInput.value.trim();
+    const selectedModel = modelSelect.value;
     if (!userMsg) return;
 
     resultsDiv.innerHTML += `<div style="margin-bottom:16px;"><b>You:</b><br>${marked.parse(userMsg)}</div>`;
@@ -120,12 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 0);
 
     const payload = {
-      model: 'mercury-coder-small',
+      model: selectedModel,
       messages: [
         { role: 'user', content: userMsg }
       ],
       max_tokens: 30000
     };
+
+    console.log('Using model:', selectedModel);
 
     try {
       const res = await fetch(API_URL, {
