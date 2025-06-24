@@ -274,3 +274,35 @@ ipcMain.handle('dialog:saveFile', async (event, content) => {
 ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
+
+// Settings file handlers
+ipcMain.handle('settings:save', async (event, settings) => {
+  try {
+    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+    console.log('Settings saved to:', settingsPath);
+    return true;
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('settings:load', async () => {
+  try {
+    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    const content = await fs.readFile(settingsPath, 'utf8');
+    const settings = JSON.parse(content);
+    console.log('Settings loaded from:', settingsPath);
+    return settings;
+  } catch (error) {
+    console.log('No existing settings file found or error reading settings:', error.message);
+    // Return default settings if file doesn't exist
+    return {
+      apiKey: '',
+      model: 'mercury-coder-small',
+      maxTokens: 30000,
+      theme: 'dark'
+    };
+  }
+});

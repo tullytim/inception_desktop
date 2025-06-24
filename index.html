@@ -506,8 +506,8 @@
         <button class="bottom-btn" id="clear-chat-btn" title="Clear Chat">
           <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         </button>
-        <button class="bottom-btn" id="clear-input-btn" title="Clear Input">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <button class="bottom-btn" id="settings-btn" title="Settings">
+          <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>
         </button>
       </div>
     </div>
@@ -665,15 +665,8 @@
             console.log('Recents clicked');
             break;
           case 'settings':
-            // TODO: Show settings
+            // Settings functionality moved to bottom button
             console.log('Settings clicked');
-            // Debug: Check database contents
-            if (window.electronAPI) {
-              window.electronAPI.debugDatabase().then(contents => {
-                console.log('Database debug contents:', contents);
-                alert(`Database contents:\nConversations: ${contents.conversations?.length || 0}\nMessages: ${contents.messages?.length || 0}\nCurrent conversation ID: ${contents.currentConversationId || 'null'}`);
-              });
-            }
             break;
         }
         
@@ -707,70 +700,76 @@
     });
     
     // Settings modal functionality
-    settingsBtn.addEventListener('click', () => {
+    settingsBtn.addEventListener('click', async () => {
+      // Load settings when opening modal
+      if (window.electronAPI) {
+        try {
+          const settings = await window.electronAPI.loadSettings();
+          document.getElementById('api-key-input').value = settings.apiKey || '';
+          document.getElementById('model-setting').value = settings.model || 'mercury-coder-small';
+          document.getElementById('max-tokens-input').value = settings.maxTokens || 30000;
+          document.getElementById('theme-setting').value = settings.theme || 'dark';
+        } catch (error) {
+          console.error('Error loading settings:', error);
+        }
+      }
       settingsModal.classList.add('open');
     });
     
-    modalClose.addEventListener('click', () => {
+    async function closeModal() {
+      // Save settings when closing modal
+      if (window.electronAPI) {
+        try {
+          const settings = {
+            apiKey: document.getElementById('api-key-input').value,
+            model: document.getElementById('model-setting').value,
+            maxTokens: parseInt(document.getElementById('max-tokens-input').value) || 30000,
+            theme: document.getElementById('theme-setting').value
+          };
+          await window.electronAPI.saveSettings(settings);
+          console.log('Settings saved successfully');
+          
+          // Update the model dropdown in the main UI
+          document.getElementById('model-select').value = settings.model;
+        } catch (error) {
+          console.error('Error saving settings:', error);
+        }
+      }
       settingsModal.classList.remove('open');
-    });
+    }
+    
+    modalClose.addEventListener('click', closeModal);
     
     // Close modal when clicking outside
     settingsModal.addEventListener('click', (e) => {
       if (e.target === settingsModal) {
-        settingsModal.classList.remove('open');
+        closeModal();
       }
     });
     
     // Close modal with Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && settingsModal.classList.contains('open')) {
-        settingsModal.classList.remove('open');
+        closeModal();
       }
     });
     
-    // Load settings from localStorage
-    function loadSettings() {
-      const apiKey = localStorage.getItem('inception_api_key');
-      const model = localStorage.getItem('inception_model') || 'mercury-coder-small';
-      const maxTokens = localStorage.getItem('inception_max_tokens') || '30000';
-      const theme = localStorage.getItem('inception_theme') || 'dark';
-      
-      if (apiKey) {
-        document.getElementById('api-key-input').value = apiKey;
+    // Load settings on page startup
+    async function loadInitialSettings() {
+      if (window.electronAPI) {
+        try {
+          const settings = await window.electronAPI.loadSettings();
+          // Update the model dropdown in the main UI
+          document.getElementById('model-select').value = settings.model || 'mercury-coder-small';
+          console.log('Initial settings loaded:', settings);
+        } catch (error) {
+          console.error('Error loading initial settings:', error);
+        }
       }
-      document.getElementById('model-setting').value = model;
-      document.getElementById('max-tokens-input').value = maxTokens;
-      document.getElementById('theme-setting').value = theme;
-      
-      // Update the model dropdown in the main UI
-      document.getElementById('model-select').value = model;
     }
     
-    // Save settings to localStorage
-    function saveSettings() {
-      const apiKey = document.getElementById('api-key-input').value;
-      const model = document.getElementById('model-setting').value;
-      const maxTokens = document.getElementById('max-tokens-input').value;
-      const theme = document.getElementById('theme-setting').value;
-      
-      localStorage.setItem('inception_api_key', apiKey);
-      localStorage.setItem('inception_model', model);
-      localStorage.setItem('inception_max_tokens', maxTokens);
-      localStorage.setItem('inception_theme', theme);
-      
-      // Update the model dropdown in the main UI
-      document.getElementById('model-select').value = model;
-    }
-    
-    // Save settings when inputs change
-    document.getElementById('api-key-input').addEventListener('change', saveSettings);
-    document.getElementById('model-setting').addEventListener('change', saveSettings);
-    document.getElementById('max-tokens-input').addEventListener('change', saveSettings);
-    document.getElementById('theme-setting').addEventListener('change', saveSettings);
-    
-    // Load settings on page load
-    loadSettings();
+    // Load settings when page loads
+    loadInitialSettings();
   </script>
 </body>
 </html>

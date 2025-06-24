@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
 
-  const API_KEY = 'sk_aeaa96f1fe26076c7b3135a9dce704b7';
   const API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
+  const DEFAULT_API_KEY = 'sk_aeaa96f1fe26076c7b3135a9dce704b7';
 
   // Load recent chats on startup
   loadRecentChats();
@@ -121,22 +121,54 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
     }, 0);
 
-    const payload = {
+    // Load current settings from JSON file
+    let settings = {
+      apiKey: DEFAULT_API_KEY,
       model: selectedModel,
+      maxTokens: 30000
+    };
+    
+    if (window.electronAPI) {
+      try {
+        const loadedSettings = await window.electronAPI.loadSettings();
+        settings = loadedSettings;
+        console.log('Loaded settings for API call:', { 
+          hasCustomApiKey: !!(loadedSettings.apiKey && loadedSettings.apiKey.trim()),
+          model: loadedSettings.model, 
+          maxTokens: loadedSettings.maxTokens 
+        });
+      } catch (err) {
+        console.log('Using default settings for API call:', err);
+      }
+    }
+
+    // Determine which API key to use
+    const apiKeyToUse = (settings.apiKey && settings.apiKey.trim()) ? settings.apiKey : DEFAULT_API_KEY;
+    const isUsingCustomApiKey = (settings.apiKey && settings.apiKey.trim()) ? true : false;
+    
+    console.log('API Key source:', isUsingCustomApiKey ? 'Custom (from settings)' : 'Default');
+    console.log('Using API key:', apiKeyToUse.substring(0, 10) + '...' + apiKeyToUse.slice(-4));
+
+    const payload = {
+      model: settings.model || selectedModel,
       messages: [
         { role: 'user', content: userMsg }
       ],
-      max_tokens: 30000
+      max_tokens: settings.maxTokens || 30000
     };
 
-    console.log('Using model:', selectedModel);
+    console.log('API call details:', { 
+      model: payload.model, 
+      maxTokens: payload.max_tokens,
+      usingCustomApiKey: isUsingCustomApiKey
+    });
 
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`
+          'Authorization': `Bearer ${apiKeyToUse}`
         },
         body: JSON.stringify(payload)
       });
