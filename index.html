@@ -535,7 +535,8 @@
           </button>
         </div>
         <select id="model-select" class="model-select">
-          <option value="mercury-coder-small">Mercury Coder</option>
+          <option value="mercury-coder">Mercury Coder</option>
+          <option value="mercury" selected>Mercury</option>
         </select>
       </div>
     </div>
@@ -561,6 +562,7 @@
           <select id="model-setting" class="setting-input">
             <option value="mercury-coder-small">Mercury Coder Small</option>
             <option value="mercury-coder-large">Mercury Coder Large</option>
+            <option value="mercury" selected>Mercury</option>
           </select>
           <div class="setting-description">Choose your preferred AI model</div>
         </div>
@@ -734,7 +736,7 @@
         try {
           const settings = await window.electronAPI.loadSettings();
           document.getElementById('api-key-input').value = settings.apiKey || '';
-          document.getElementById('model-setting').value = settings.model || 'mercury-coder-small';
+          document.getElementById('model-setting').value = settings.model || 'mercury';
           document.getElementById('max-tokens-input').value = settings.maxTokens || 30000;
           document.getElementById('theme-setting').value = settings.theme || 'dark';
         } catch (error) {
@@ -766,6 +768,27 @@
       settingsModal.classList.remove('open');
     }
     
+    // Add event listener for model setting changes in the modal
+    document.getElementById('model-setting').addEventListener('change', async function(e) {
+      const selectedModel = e.target.value;
+      console.log('Model changed in settings to:', selectedModel);
+      
+      // Update the main dropdown immediately
+      document.getElementById('model-select').value = selectedModel;
+      
+      if (window.electronAPI) {
+        try {
+          // Load current settings and update model
+          const currentSettings = await window.electronAPI.loadSettings() || {};
+          currentSettings.model = selectedModel;
+          await window.electronAPI.saveSettings(currentSettings);
+          console.log('Model preference saved from settings:', selectedModel);
+        } catch (error) {
+          console.error('Error saving model preference from settings:', error);
+        }
+      }
+    });
+    
     modalClose.addEventListener('click', closeModal);
     
     // Close modal when clicking outside
@@ -782,18 +805,47 @@
       }
     });
     
-    // Load settings on page startup
+    // Load settings on page startup and set up auto-save
     async function loadInitialSettings() {
+      const modelSelect = document.getElementById('model-select');
+      
       if (window.electronAPI) {
         try {
           const settings = await window.electronAPI.loadSettings();
-          // Update the model dropdown in the main UI
-          document.getElementById('model-select').value = settings.model || 'mercury-coder-small';
-          console.log('Initial settings loaded:', settings);
+          // Set the saved model or default to 'mercury'
+          const savedModel = settings?.model || 'mercury';
+          modelSelect.value = savedModel;
+          console.log('Initial settings loaded, model set to:', savedModel);
         } catch (error) {
           console.error('Error loading initial settings:', error);
+          // Default to 'mercury' on error
+          modelSelect.value = 'mercury';
         }
+      } else {
+        // Default to 'mercury' if no electronAPI
+        modelSelect.value = 'mercury';
       }
+      
+      // Add event listener to auto-save when dropdown changes
+      modelSelect.addEventListener('change', async function(e) {
+        const selectedModel = e.target.value;
+        console.log('Model changed to:', selectedModel);
+        
+        // Update the settings modal dropdown immediately
+        document.getElementById('model-setting').value = selectedModel;
+        
+        if (window.electronAPI) {
+          try {
+            // Load current settings and update model
+            const currentSettings = await window.electronAPI.loadSettings() || {};
+            currentSettings.model = selectedModel;
+            await window.electronAPI.saveSettings(currentSettings);
+            console.log('Model preference saved:', selectedModel);
+          } catch (error) {
+            console.error('Error saving model preference:', error);
+          }
+        }
+      });
     }
     
     // Load settings when page loads
