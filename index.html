@@ -42,7 +42,7 @@
     
     #results {
       flex: 1;
-      padding: 32px 0 140px 0;
+      padding: 32px 0 160px 0;
       max-width: 1000px;
       margin: 0 auto;
       width: 100%;
@@ -56,18 +56,26 @@
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      bottom: 20px;
+      bottom: 32px;
       background: #23262f;
       display: flex;
       flex-direction: column;
       justify-content: center;
       z-index: 10;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 6px 20px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
       padding: 0;
-      border-radius: 16px;
+      border-radius: 20px;
       max-width: 800px;
       width: calc(100% - 40px);
-      border: 1px solid #2d3142;
+      border: 1px solid #374151;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .chat-input-area:hover {
+      transform: translateX(-50%) translateY(-2px);
+      box-shadow: 0 16px 50px rgba(0,0,0,0.5), 0 8px 25px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
     }
     .chat-input-area-inner {
       display: flex;
@@ -104,7 +112,7 @@
       background: #2d3142;
       border: 1px solid #374151;
       color: #9ca3af;
-      font-size: 0.9em;
+      font-size: 0.8em;
       padding: 8px 10px;
       border-radius: 6px;
       outline: none;
@@ -130,6 +138,7 @@
     .bottom-buttons .model-select option {
       background: #374151;
       color: #d1d5db;
+      font-size: 0.8em;
     }
     
     .chat-input-area button {
@@ -162,12 +171,17 @@
     
     @media (max-width: 700px) {
       #results {
-        padding: 16px 0 120px 0;
+        padding: 16px 0 140px 0;
       }
       .chat-input-area {
         width: calc(100% - 20px);
-        bottom: 10px;
-        border-radius: 12px;
+        bottom: 20px;
+        border-radius: 18px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.4), 0 5px 18px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
+      }
+      .chat-input-area:hover {
+        transform: translateX(-50%) translateY(-1px);
+        box-shadow: 0 12px 42px rgba(0,0,0,0.45), 0 6px 22px rgba(0,0,0,0.3), 0 3px 10px rgba(0,0,0,0.2);
       }
       .chat-input-area-inner {
         padding: 12px 16px 6px 16px;

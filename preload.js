@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Custom events
   onMenuAction: (callback) => ipcRenderer.on('menu:action', callback),
+  onMenuCommand: (eventName, callback) => ipcRenderer.on(eventName, callback),
   
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),

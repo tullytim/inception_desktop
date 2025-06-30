@@ -65,7 +65,7 @@ function createWindow() {
       contextIsolation: true,    // Security best practice
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, 'assets/app-icon.png') // Updated to match sidebar logo
+    icon: path.join(__dirname, 'assets/256.png') // App icon
   });
 
   // Load the app
@@ -207,20 +207,49 @@ ipcMain.handle('db:debug-contents', async () => {
   }
 });
 
-// Optional: Custom menu
+// Custom menu with About dialog
+function showAboutDialog() {
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'About Inception',
+    message: 'Inception Chat',
+    detail: `Version: ${app.getVersion()}\n\nAn AI-powered chat application built with Electron.\n\nPowered by Inception Labs AI\n\n© 2024 Inception Labs`,
+    buttons: ['OK'],
+    icon: path.join(__dirname, 'assets/256.png')
+  });
+}
+
 const template = [
+  // macOS app menu
+  ...(process.platform === 'darwin' ? [{
+    label: app.getName(),
+    submenu: [
+      {
+        label: 'About ' + app.getName(),
+        click: showAboutDialog
+      },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideothers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' }
+    ]
+  }] : []),
   {
     label: 'File',
     submenu: [
       {
-        label: 'New',
+        label: 'New Chat',
         accelerator: 'CmdOrCtrl+N',
         click: () => {
-          // Handle new file
+          mainWindow.webContents.send('menu:new-chat');
         }
       },
       { type: 'separator' },
-      { role: 'quit' }
+      ...(process.platform !== 'darwin' ? [{ role: 'quit' }] : [])
     ]
   },
   {
@@ -231,9 +260,41 @@ const template = [
       { type: 'separator' },
       { role: 'cut' },
       { role: 'copy' },
-      { role: 'paste' }
+      { role: 'paste' },
+      { role: 'selectall' }
     ]
-  }
+  },
+  {
+    label: 'View',
+    submenu: [
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' }
+    ]
+  },
+  {
+    label: 'Window',
+    submenu: [
+      { role: 'minimize' },
+      { role: 'close' }
+    ]
+  },
+  // Help menu for non-macOS platforms
+  ...(process.platform !== 'darwin' ? [{
+    label: 'Help',
+    submenu: [
+      {
+        label: 'About',
+        click: showAboutDialog
+      }
+    ]
+  }] : [])
 ];
 
 const menu = Menu.buildFromTemplate(template);

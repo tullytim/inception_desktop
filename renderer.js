@@ -15,6 +15,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen for refresh events
   document.addEventListener('refreshRecentChats', loadRecentChats);
 
+  // Listen for menu events from main process
+  if (window.electronAPI && window.electronAPI.onMenuCommand) {
+    window.electronAPI.onMenuCommand('menu:new-chat', () => {
+      // Clear the chat
+      resultsDiv.innerHTML = '';
+      // Clear the input field
+      chatInput.value = '';
+      // Start new chat in database
+      if (window.electronAPI) {
+        window.electronAPI.newChat();
+      }
+      // Refresh recent chats
+      setTimeout(() => {
+        loadRecentChats();
+      }, 100);
+    });
+  }
+
   async function loadRecentChats() {
     if (!window.electronAPI) return;
     
