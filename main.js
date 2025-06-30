@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, ipcMain, dialog } = require('electron');
 const path = require('path');
 const Database = require('better-sqlite3');
 
@@ -51,6 +51,7 @@ function initDatabase() {
 
 // Keep reference to prevent garbage collection
 let mainWindow;
+let tray;
 
 function createWindow() {
   // Initialize database
@@ -76,21 +77,148 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
+  // Handle window close event - minimize to tray instead of quitting
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+      
+      // Show notification on first minimize (macOS)
+      if (process.platform === 'darwin' && !mainWindow.trayNotificationShown) {
+        // You can add a notification here if desired
+        mainWindow.trayNotificationShown = true;
+      }
+    }
+  });
+
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+function createTray() {
+  // Only create tray on macOS for now
+  if (process.platform !== 'darwin') {
+    console.log('Tray not supported on this platform');
+    return;
+  }
+  
+  try {
+    // Use 32-nobg.png for macOS tray (no background version)
+    const trayIconPath = path.join(__dirname, 'assets', '32-nobg.png');
+    
+    if (!require('fs').existsSync(trayIconPath)) {
+      console.error('Tray icon not found:', trayIconPath);
+      return;
+    }
+    
+    console.log('Creating tray with icon at:', trayIconPath);
+    
+    tray = new Tray(trayIconPath);
+    console.log('Tray created successfully');
+    
+    // Set tooltip
+    tray.setToolTip('Inception Chat');
+  
+  // Create context menu for the tray
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show Inception',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+          }
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      }
+    },
+    {
+      label: 'New Chat',
+      accelerator: 'CmdOrCtrl+N',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+          }
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send('menu:new-chat');
+        } else {
+          createWindow();
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'About',
+      click: showAboutDialog
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
+      click: () => {
+        app.isQuiting = true;
+        app.quit();
+      }
+    }
+  ]);
+  
+  // Set context menu
+  tray.setContextMenu(contextMenu);
+  
+  // Handle double-click to show/hide window
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    } else {
+      createWindow();
+    }
+  });
+  
+  // Handle single click on macOS to show window
+  if (process.platform === 'darwin') {
+    tray.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.focus();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      } else {
+        createWindow();
+             }
+     });
+   }
+ } catch (error) {
+   console.error('Error creating tray:', error);
+ }
+}
+
 // App event handlers
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+});
 
 app.on('window-all-closed', () => {
-  // Close database connection
-  if (db) {
-    db.close();
-  }
+  // On macOS, keep the app running in the tray even when all windows are closed
   if (process.platform !== 'darwin') {
+    // Close database connection
+    if (db) {
+      db.close();
+    }
     app.quit();
   }
 });
@@ -98,6 +226,14 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+  }
+});
+
+app.on('before-quit', () => {
+  app.isQuiting = true;
+  // Close database connection
+  if (db) {
+    db.close();
   }
 });
 
