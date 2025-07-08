@@ -15,6 +15,171 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    /* Light theme styles */
+    body.light-theme {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    
+    body.light-theme .sidebar {
+      background: #ffffff;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+    }
+    
+    body.light-theme .sidebar-header {
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    body.light-theme .sidebar-logo {
+      color: #1e293b;
+    }
+    
+    body.light-theme .sidebar-item {
+      color: #64748b;
+    }
+    
+    body.light-theme .sidebar-item:hover {
+      background: #f1f5f9;
+      color: #059669;
+    }
+    
+    body.light-theme .sidebar-item.active {
+      background: #f1f5f9;
+      color: #059669;
+    }
+    
+    body.light-theme .hamburger-btn {
+      background: #ffffff;
+      color: #1e293b;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    body.light-theme .hamburger-btn:hover {
+      background: #f1f5f9;
+    }
+    
+    body.light-theme .sidebar-section-title {
+      color: #64748b;
+    }
+    
+    body.light-theme .recent-chat-item:hover {
+      background: #f1f5f9;
+      border-left-color: #059669;
+    }
+    
+    body.light-theme .recent-chat-title {
+      color: #1e293b;
+    }
+    
+    body.light-theme .recent-chat-date {
+      color: #64748b;
+    }
+    
+    body.light-theme .chat-input-area {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08), 0 6px 20px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.03);
+    }
+    
+    body.light-theme .chat-input-area:hover {
+      box-shadow: 0 16px 50px rgba(0,0,0,0.1), 0 8px 25px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    }
+    
+    body.light-theme .chat-input-area input {
+      background: #f8fafc;
+      color: #1e293b;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    
+    body.light-theme .chat-input-area input:focus {
+      box-shadow: 0 2px 16px rgba(59,130,246,0.08);
+      border: 1.5px solid #059669;
+    }
+    
+    body.light-theme .bottom-buttons .model-select {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    
+    body.light-theme .bottom-buttons .model-select:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+    
+    body.light-theme .bottom-buttons .model-select:focus {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+      color: #475569;
+    }
+    
+    body.light-theme .bottom-buttons .model-select option {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    
+    body.light-theme .chat-input-area .bottom-btn {
+      background: #f8fafc !important;
+      color: #64748b !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    
+    body.light-theme .chat-input-area .bottom-btn:hover {
+      background: #f1f5f9 !important;
+      color: #475569 !important;
+    }
+    
+    body.light-theme .modal {
+      background: rgba(0,0,0,0.3);
+    }
+    
+    body.light-theme .modal-content {
+      background: #ffffff;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    body.light-theme .modal-header {
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    body.light-theme .modal-title {
+      color: #1e293b;
+    }
+    
+    body.light-theme .modal-close {
+      color: #64748b;
+    }
+    
+    body.light-theme .modal-close:hover {
+      background: #f1f5f9;
+      color: #059669;
+    }
+    
+    body.light-theme .modal-body {
+      color: #1e293b;
+    }
+    
+    body.light-theme .setting-label {
+      color: #1e293b;
+    }
+    
+    body.light-theme .setting-input {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
+    }
+    
+    body.light-theme .setting-input:focus {
+      border-color: #059669;
+    }
+    
+    body.light-theme .setting-description {
+      color: #64748b;
     }
     
     .container {
@@ -864,6 +1029,88 @@
     
     // Load settings when page loads
     loadInitialSettings();
+    
+    // Theme management functions
+    function applyTheme(theme) {
+      const body = document.body;
+      
+      // Remove existing theme classes
+      body.classList.remove('light-theme');
+      
+      if (theme === 'light') {
+        body.classList.add('light-theme');
+      } else if (theme === 'auto') {
+        // Check system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (!prefersDark) {
+          body.classList.add('light-theme');
+        }
+      }
+      // 'dark' theme is the default, no class needed
+    }
+    
+    // Auto-save theme changes
+    async function saveThemeChange(newTheme) {
+      if (window.electronAPI) {
+        try {
+          const currentSettings = await window.electronAPI.loadSettings() || {};
+          currentSettings.theme = newTheme;
+          await window.electronAPI.saveSettings(currentSettings);
+          console.log('Theme preference saved:', newTheme);
+        } catch (error) {
+          console.error('Error saving theme preference:', error);
+        }
+      }
+    }
+    
+    // Add event listener for theme setting changes
+    document.getElementById('theme-setting').addEventListener('change', async function(e) {
+      const selectedTheme = e.target.value;
+      console.log('Theme changed to:', selectedTheme);
+      
+      // Apply theme immediately
+      applyTheme(selectedTheme);
+      
+      // Save the theme preference
+      await saveThemeChange(selectedTheme);
+    });
+    
+    // Load and apply initial theme
+    async function loadInitialTheme() {
+      if (window.electronAPI) {
+        try {
+          const settings = await window.electronAPI.loadSettings();
+          const savedTheme = settings?.theme || 'dark';
+          console.log('Initial theme loaded:', savedTheme);
+          applyTheme(savedTheme);
+        } catch (error) {
+          console.error('Error loading initial theme:', error);
+          // Default to dark theme on error
+          applyTheme('dark');
+        }
+      } else {
+        // Default to dark theme if no electronAPI
+        applyTheme('dark');
+      }
+    }
+    
+    // Listen for system theme changes when in auto mode
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async (e) => {
+      if (window.electronAPI) {
+        try {
+          const settings = await window.electronAPI.loadSettings();
+          if (settings?.theme === 'auto') {
+            console.log('System theme changed, reapplying auto theme');
+            applyTheme('auto');
+          }
+        } catch (error) {
+          console.error('Error checking theme setting on system change:', error);
+        }
+      }
+    });
+    
+    // Load theme when page loads
+    loadInitialTheme();
   </script>
 </body>
 </html>
