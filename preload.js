@@ -26,5 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Settings functions
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
-  loadSettings: () => ipcRenderer.invoke('settings:load')
+  loadSettings: () => ipcRenderer.invoke('settings:load'),
+  
+  // API key dialog
+  sendApiKey: (apiKey) => ipcRenderer.send('api-key-response', apiKey)
 });

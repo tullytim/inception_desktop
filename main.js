@@ -77,6 +77,11 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
+  // Check for API key after window is ready
+  mainWindow.webContents.once('dom-ready', async () => {
+    await checkApiKey();
+  });
+
   // Handle window close event - minimize to tray instead of quitting
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -94,6 +99,172 @@ function createWindow() {
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+}
+
+async function checkApiKey() {
+  try {
+    // Load current settings
+    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+    let settings;
+    
+    try {
+      const content = await fs.readFile(settingsPath, 'utf8');
+      settings = JSON.parse(content);
+    } catch (error) {
+      // Use default settings if file doesn't exist
+      settings = {
+        apiKey: '',
+        model: 'mercury-coder-small',
+        maxTokens: 30000,
+        theme: 'dark'
+      };
+    }
+    
+    // Check if API key is empty
+    if (!settings.apiKey || settings.apiKey.trim() === '') {
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'API Key Required',
+        message: 'API Key Required',
+        detail: 'You need to provide an API key to use Inception Chat. Please enter your API key below:',
+        buttons: ['OK', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1
+      });
+      
+      if (result.response === 0) {
+        // User clicked OK, now get the API key
+        const apiKey = await promptForApiKey();
+        if (apiKey && apiKey.trim() !== '') {
+          settings.apiKey = apiKey.trim();
+          // Save the updated settings
+          await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+          console.log('API key saved successfully');
+        } else {
+          console.log('No API key provided');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking API key:', error);
+  }
+}
+
+async function promptForApiKey() {
+  return new Promise((resolve) => {
+    // Create a simple input dialog using the renderer process
+    const dialogWindow = new BrowserWindow({
+      width: 400,
+      height: 200,
+      modal: true,
+      parent: mainWindow,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      },
+      show: false,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      icon: path.join(__dirname, 'assets/256.png')
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Enter API Key</title>
+        <style>
+          body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            padding: 20px; 
+            margin: 0; 
+            background: #f5f5f5;
+          }
+          .container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 500; 
+          }
+          input { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            font-size: 14px; 
+            box-sizing: border-box;
+          }
+          .buttons { 
+            margin-top: 20px; 
+            text-align: right; 
+          }
+          button { 
+            padding: 8px 16px; 
+            margin-left: 8px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 14px;
+          }
+          .ok { 
+            background: #007AFF; 
+            color: white; 
+          }
+          .cancel { 
+            background: #f0f0f0; 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <label for="apiKey">Enter your API Key:</label>
+          <input type="password" id="apiKey" placeholder="Enter your API key..." autofocus>
+          <div class="buttons">
+            <button class="cancel" onclick="cancel()">Cancel</button>
+            <button class="ok" onclick="submit()">OK</button>
+          </div>
+        </div>
+        <script>
+          function submit() {
+            const apiKey = document.getElementById('apiKey').value;
+            window.electronAPI.sendApiKey(apiKey);
+          }
+          function cancel() {
+            window.electronAPI.sendApiKey('');
+          }
+          document.getElementById('apiKey').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submit();
+            if (e.key === 'Escape') cancel();
+          });
+        </script>
+      </body>
+      </html>
+    `;
+
+    dialogWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+    
+    // Handle the API key response
+    const handleApiKey = (event, apiKey) => {
+      dialogWindow.close();
+      resolve(apiKey);
+    };
+    
+    ipcMain.once('api-key-response', handleApiKey);
+    
+    dialogWindow.on('closed', () => {
+      ipcMain.removeListener('api-key-response', handleApiKey);
+      resolve('');
+    });
+    
+    dialogWindow.show();
   });
 }
 
@@ -470,6 +641,11 @@ ipcMain.handle('dialog:saveFile', async (event, content) => {
 
 ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
+});
+
+// Handle API key response from dialog
+ipcMain.on('api-key-response', (event, apiKey) => {
+  // This is handled in the promptForApiKey function
 });
 
 // Settings file handlers
