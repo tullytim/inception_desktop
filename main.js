@@ -58,17 +58,13 @@ function initDatabase() {
     
     // Check existing conversations on startup
     const existingConversations = db.prepare('SELECT COUNT(*) as count FROM conversations').get();
-    console.log('Existing conversations in database:', existingConversations.count);
     
     const existingMessages = db.prepare('SELECT COUNT(*) as count FROM messages').get();
-    console.log('Existing messages in database:', existingMessages.count);
     
     // Reset currentConversationId on startup (don't continue old conversations)
     currentConversationId = null;
-    console.log('Reset currentConversationId to null on startup');
   } catch (error) {
     console.error('Failed to initialize database:', error);
-    console.log('Database initialization temporarily disabled');
     db = null;
   }
 }
@@ -544,7 +540,7 @@ function showAboutDialog() {
     type: 'info',
     title: 'About Inception',
     message: 'Inception Chat',
-    detail: `Version: ${app.getVersion()}\n\nAn AI-powered chat application built with Electron.\n\nPowered by Inception Labs AI\n\n© 2024 Inception Labs`,
+    detail: `Version: ${app.getVersion()}\n\nAn AI-powered chat application built with Electron.\n\nCreated by Tim Tully\n\n© 2025 Tim Tully`,
     buttons: ['OK'],
     icon: path.join(__dirname, 'assets/256.png')
   });
