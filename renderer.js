@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsDiv = document.getElementById('results');
 
   const API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
-  const DEFAULT_API_KEY = 'sk_aeaa96f1fe26076c7b3135a9dce704b7';
 
   // Load recent chats on startup
   loadRecentChats();
@@ -165,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load current settings from JSON file
     let settings = {
-      apiKey: DEFAULT_API_KEY,
+      apiKey: '',
       model: selectedModel,
       maxTokens: 30000
     };
@@ -184,11 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Determine which API key to use
-    const apiKeyToUse = (settings.apiKey && settings.apiKey.trim()) ? settings.apiKey : DEFAULT_API_KEY;
-    const isUsingCustomApiKey = (settings.apiKey && settings.apiKey.trim()) ? true : false;
+    // Validate API key is set
+    if (!settings.apiKey || !settings.apiKey.trim()) {
+      // Show error message in the results div
+      const errorMessage = `
+        <div style="padding: 20px; margin: 20px 0; background: #2d1b1b; border: 1px solid #dc3545; border-radius: 8px; color: #f8d7da;">
+          <h3 style="margin: 0 0 10px 0; color: #dc3545;">⚠️ API Key Required</h3>
+          <p style="margin: 0;">Please set your Inception Labs API key in the settings before making requests.</p>
+          <p style="margin: 10px 0 0 0; font-size: 0.9em; opacity: 0.8;">Click the settings button (⚙️) at the bottom to configure your API key.</p>
+        </div>
+      `;
+      resultsDiv.innerHTML += errorMessage;
+      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+      return;
+    }
     
-    console.log('API Key source:', isUsingCustomApiKey ? 'Custom (from settings)' : 'Default');
+    const apiKeyToUse = settings.apiKey.trim();
     console.log('Using API key:', apiKeyToUse.substring(0, 10) + '...' + apiKeyToUse.slice(-4));
 
     const payload = {
@@ -202,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('API call details:', { 
       model: payload.model, 
       maxTokens: payload.max_tokens,
-      usingCustomApiKey: isUsingCustomApiKey
+      apiKeySet: true
     });
 
     try {
