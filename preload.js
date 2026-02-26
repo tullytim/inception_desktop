@@ -35,7 +35,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Custom events
   onMenuAction: (callback) => ipcRenderer.on('menu:action', callback),
-  onMenuCommand: (eventName, callback) => ipcRenderer.on(eventName, callback),
+  onMenuCommand: (eventName, callback) => {
+    const allowedChannels = ['menu:action', 'menu:new-chat'];
+    if (allowedChannels.includes(eventName)) {
+      ipcRenderer.on(eventName, callback);
+    }
+  },
   
   // Remove listeners (restricted to known channels)
   removeAllListeners: (channel) => {
@@ -51,8 +56,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRecentChats: () => ipcRenderer.invoke('db:get-recent-chats'),
   getConversationMessages: (conversationId) => ipcRenderer.invoke('db:get-conversation-messages', conversationId),
   newChat: () => ipcRenderer.invoke('db:new-chat'),
-  debugDatabase: () => ipcRenderer.invoke('db:debug-contents'),
-  
+
   // Settings functions
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   loadSettings: () => ipcRenderer.invoke('settings:load'),

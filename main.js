@@ -74,6 +74,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    titleBarStyle: 'hiddenInset', // Extend content to full window height (macOS)
     webPreferences: {
       nodeIntegration: false,    // Security best practice
       contextIsolation: true,    // Security best practice
@@ -253,14 +254,20 @@ let currentConversationId = null;
 
 ipcMain.handle('db:create-conversation', async (event, title) => {
   if (!db) return null;
+  const safeTitle = (typeof title === 'string' && title.trim())
+    ? title.trim().substring(0, 200)
+    : 'New Chat';
   const stmt = db.prepare('INSERT INTO conversations (title) VALUES (?)');
-  const result = stmt.run(title || 'New Chat');
+  const result = stmt.run(safeTitle);
   currentConversationId = result.lastInsertRowid;
   return currentConversationId;
 });
 
 ipcMain.handle('db:save-message', async (event, role, content) => {
   if (!db) return null;
+
+  if (role !== 'user' && role !== 'assistant') return null;
+  if (typeof content !== 'string' || !content.trim()) return null;
 
   try {
     if (role === 'user') {
@@ -308,8 +315,10 @@ ipcMain.handle('db:get-recent-chats', async () => {
 
 ipcMain.handle('db:get-conversation-messages', async (event, conversationId) => {
   if (!db) return [];
+  const id = parseInt(conversationId, 10);
+  if (!Number.isInteger(id) || id <= 0) return [];
   const stmt = db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC');
-  return stmt.all(conversationId);
+  return stmt.all(id);
 });
 
 ipcMain.handle('db:new-chat', async () => {
@@ -318,24 +327,26 @@ ipcMain.handle('db:new-chat', async () => {
   return true;
 });
 
-// Debug function to check database contents
-ipcMain.handle('db:debug-contents', async () => {
-  if (!db) return { error: 'Database not available' };
-  
-  try {
-    const conversations = db.prepare('SELECT * FROM conversations ORDER BY updated_at DESC').all();
-    const messages = db.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 50').all();
-    
-    return {
-      conversations,
-      messages,
-      currentConversationId
-    };
-  } catch (error) {
-    console.error('Error getting debug contents:', error);
-    return { error: error.message };
-  }
-});
+// Debug function to check database contents (development only)
+if (process.env.NODE_ENV === 'development') {
+  ipcMain.handle('db:debug-contents', async () => {
+    if (!db) return { error: 'Database not available' };
+
+    try {
+      const conversations = db.prepare('SELECT * FROM conversations ORDER BY updated_at DESC').all();
+      const messages = db.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 50').all();
+
+      return {
+        conversations,
+        messages,
+        currentConversationId
+      };
+    } catch (error) {
+      console.error('Error getting debug contents:', error);
+      return { error: error.message };
+    }
+  });
+}
 
 // Custom menu with About dialog
 function showAboutDialog() {
@@ -456,12 +467,19 @@ ipcMain.handle('dialog:openFile', async () => {
   });
 
   if (!canceled) {
+    const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+    const stat = await fs.stat(filePaths[0]);
+    if (stat.size > MAX_FILE_BYTES) {
+      throw new Error('File too large (max 10 MB)');
+    }
     const content = await fs.readFile(filePaths[0], 'utf8');
     return { name: path.basename(filePaths[0]), content };
   }
 });
 
 ipcMain.handle('dialog:saveFile', async (event, content) => {
+  if (typeof content !== 'string') return false;
+
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     filters: [
       { name: 'Text Files', extensions: ['txt'] }
@@ -479,19 +497,40 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
 
+const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-coder', 'mercury-coder-small', 'mercury-coder-large'];
+const ALLOWED_THEMES = ['dark', 'light'];
+const MAX_TOKENS_LIMIT = 16384;
+
 // Settings file handlers
 ipcMain.handle('settings:save', async (event, settings) => {
+  if (!settings || typeof settings !== 'object') return false;
+
   try {
     // Save API key to ~/.inception/config.json
     if (settings.apiKey !== undefined) {
+      if (typeof settings.apiKey !== 'string') return false;
       await ensureInceptionDir();
       await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey: settings.apiKey }, null, 2));
     }
 
-    // Save other settings (without apiKey) to userData/settings.json
-    const { apiKey, ...otherSettings } = settings;
+    // Allowlist and validate each field before writing to disk
+    const safeSettings = {};
+    if (settings.model !== undefined) {
+      if (!ALLOWED_MODELS.includes(settings.model)) return false;
+      safeSettings.model = settings.model;
+    }
+    if (settings.maxTokens !== undefined) {
+      const t = parseInt(settings.maxTokens, 10);
+      if (!Number.isInteger(t) || t < 1 || t > MAX_TOKENS_LIMIT) return false;
+      safeSettings.maxTokens = t;
+    }
+    if (settings.theme !== undefined) {
+      if (!ALLOWED_THEMES.includes(settings.theme)) return false;
+      safeSettings.theme = settings.theme;
+    }
+
     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
-    await fs.writeFile(settingsPath, JSON.stringify(otherSettings, null, 2));
+    await fs.writeFile(settingsPath, JSON.stringify(safeSettings, null, 2));
     return true;
   } catch (error) {
     console.error('Error saving settings:', error);

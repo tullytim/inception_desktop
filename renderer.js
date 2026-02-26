@@ -114,11 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Display all messages from the conversation
       messages.forEach(message => {
-        if (message.role === 'user') {
-          resultsDiv.innerHTML += `<div style="margin-bottom:16px;"><b>You:</b><br>${marked.parse(message.content)}</div>`;
-        } else {
-          resultsDiv.innerHTML += `<div style="margin-bottom:24px;"><b>Assistant:</b><br>${marked.parse(message.content)}</div>`;
-        }
+        const isUser = message.role === 'user';
+        const wrapper = document.createElement('div');
+        wrapper.style.marginBottom = isUser ? '16px' : '24px';
+        const label = document.createElement('b');
+        label.textContent = isUser ? 'You:' : 'Assistant:';
+        const content = document.createElement('div');
+        content.innerHTML = marked.parse(message.content);
+        wrapper.appendChild(label);
+        wrapper.appendChild(document.createElement('br'));
+        wrapper.appendChild(content);
+        resultsDiv.appendChild(wrapper);
       });
 
       // Highlight code blocks
@@ -140,7 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedModel = modelSelect.value;
     if (!userMsg) return;
 
-    resultsDiv.innerHTML += `<div style="margin-bottom:16px;"><b>You:</b><br>${marked.parse(userMsg)}</div>`;
+    const userWrapper = document.createElement('div');
+    userWrapper.style.marginBottom = '16px';
+    const userLabel = document.createElement('b');
+    userLabel.textContent = 'You:';
+    const userContent = document.createElement('div');
+    userContent.innerHTML = marked.parse(userMsg);
+    userWrapper.appendChild(userLabel);
+    userWrapper.appendChild(document.createElement('br'));
+    userWrapper.appendChild(userContent);
+    resultsDiv.appendChild(userWrapper);
     chatInput.value = '';
 
     // Save user message to database
@@ -177,14 +192,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Validate API key is set
     if (!settings.apiKey || !settings.apiKey.trim()) {
-      const errorMessage = `
-        <div style="padding: 20px; margin: 20px 0; background: #2d1b1b; border: 1px solid #dc3545; border-radius: 8px; color: #f8d7da;">
-          <h3 style="margin: 0 0 10px 0; color: #dc3545;">⚠️ API Key Required</h3>
-          <p style="margin: 0;">Please set your Inception Labs API key in the settings before making requests.</p>
-          <p style="margin: 10px 0 0 0; font-size: 0.9em; opacity: 0.8;">Click the settings button (⚙️) at the bottom to configure your API key, or <a href="https://platform.inceptionlabs.ai/dashboard/api-keys" target="_blank" style="color: #f8d7da;">get one here →</a></p>
-        </div>
-      `;
-      resultsDiv.innerHTML += errorMessage;
+      const errBox = document.createElement('div');
+      errBox.style.cssText = 'padding:20px;margin:20px 0;background:#2d1b1b;border:1px solid #dc3545;border-radius:8px;color:#f8d7da;';
+      const heading = document.createElement('h3');
+      heading.style.cssText = 'margin:0 0 10px 0;color:#dc3545;';
+      heading.textContent = '⚠️ API Key Required';
+      const p1 = document.createElement('p');
+      p1.style.margin = '0';
+      p1.textContent = 'Please set your Inception Labs API key in the settings before making requests.';
+      const p2 = document.createElement('p');
+      p2.style.cssText = 'margin:10px 0 0 0;font-size:0.9em;opacity:0.8;';
+      p2.textContent = 'Click the settings button (⚙️) at the bottom to configure your API key, or ';
+      const link = document.createElement('a');
+      link.href = 'https://platform.inceptionlabs.ai/dashboard/api-keys';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.style.color = '#f8d7da';
+      link.textContent = 'get one here →';
+      p2.appendChild(link);
+      errBox.appendChild(heading);
+      errBox.appendChild(p1);
+      errBox.appendChild(p2);
+      resultsDiv.appendChild(errBox);
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
       return;
     }
@@ -212,7 +241,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
-      resultsDiv.innerHTML += `<div style="margin-bottom:24px;"><b>Assistant:</b><br>${marked.parse(reply)}</div>`;
+      const assistantWrapper = document.createElement('div');
+      assistantWrapper.style.marginBottom = '24px';
+      const assistantLabel = document.createElement('b');
+      assistantLabel.textContent = 'Assistant:';
+      const assistantContent = document.createElement('div');
+      assistantContent.innerHTML = marked.parse(reply);
+      assistantWrapper.appendChild(assistantLabel);
+      assistantWrapper.appendChild(document.createElement('br'));
+      assistantWrapper.appendChild(assistantContent);
+      resultsDiv.appendChild(assistantWrapper);
       Prism.highlightAll();
 
       // Save assistant message to database
