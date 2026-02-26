@@ -120,8 +120,8 @@ function createTray() {
   }
   
   try {
-    // Use 32-nobg.png for macOS tray (no background version)
-    const trayIconPath = path.join(__dirname, 'assets', '32-nobg.png');
+    // Use tray-white.png for macOS tray (white, smaller version)
+    const trayIconPath = path.join(__dirname, 'assets', 'tray-white.png');
     
     if (!require('fs').existsSync(trayIconPath)) {
       console.error('Tray icon not found:', trayIconPath);
