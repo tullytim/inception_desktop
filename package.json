@@ -39,25 +39,32 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "rpm",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Office"
     }
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^12.6.2"
   },
   "devDependencies": {
-    "electron": "^36.4.0",
+    "@electron/rebuild": "^4.0.3",
+    "electron": "^40.6.1",
     "electron-builder": "^26.0.12",
     "electron-rebuild": "^3.2.9"
   }
