@@ -67,5 +67,8 @@
     "electron": "^40.6.1",
     "electron-builder": "^26.0.12",
     "electron-rebuild": "^3.2.9"
+  },
+  "overrides": {
+    "node-abi": "^4.26.0"
   }
 }
