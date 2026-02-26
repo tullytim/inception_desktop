@@ -1,18 +1,18 @@
 /**
  * MIT License
- * 
+ *
  * Copyright (c) 2025 Tim Tully
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -58,10 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadRecentChats() {
     if (!window.electronAPI) return;
-    
+
     try {
       const recentChats = await window.electronAPI.getRecentChats();
-      console.log('Recent chats loaded:', recentChats.length);
       displayRecentChats(recentChats);
     } catch (err) {
       console.error('Failed to load recent chats:', err);
@@ -71,30 +70,34 @@ document.addEventListener('DOMContentLoaded', () => {
   function displayRecentChats(chats) {
     const recentsContainer = document.getElementById('recents-list');
     if (!recentsContainer) return;
-    
+
     recentsContainer.innerHTML = '';
-    
+
     if (!chats || chats.length === 0) {
       recentsContainer.innerHTML = '<div style="padding: 12px 20px; color: #b0b3c0; font-size: 0.9em;">No recent chats</div>';
       return;
     }
-    
+
     chats.forEach(chat => {
       const chatItem = document.createElement('div');
       chatItem.className = 'recent-chat-item';
       chatItem.dataset.conversationId = chat.id;
-      
-      const title = chat.first_message ? 
+
+      const title = chat.first_message ?
         (chat.first_message.length > 40 ? chat.first_message.substring(0, 40) + '...' : chat.first_message) :
         'New Chat';
-      
+
       const date = new Date(chat.updated_at).toLocaleDateString();
-      
-      chatItem.innerHTML = `
-        <div class="recent-chat-title">${title}</div>
-        <div class="recent-chat-date">${date}</div>
-      `;
-      
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'recent-chat-title';
+      titleEl.textContent = title;
+      const dateEl = document.createElement('div');
+      dateEl.className = 'recent-chat-date';
+      dateEl.textContent = date;
+      chatItem.appendChild(titleEl);
+      chatItem.appendChild(dateEl);
+
       chatItem.addEventListener('click', () => loadConversation(chat.id));
       recentsContainer.appendChild(chatItem);
     });
@@ -102,13 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadConversation(conversationId) {
     if (!window.electronAPI) return;
-    
+
     try {
       const messages = await window.electronAPI.getConversationMessages(conversationId);
-      
+
       // Clear current results
       resultsDiv.innerHTML = '';
-      
+
       // Display all messages from the conversation
       messages.forEach(message => {
         if (message.role === 'user') {
@@ -117,15 +120,15 @@ document.addEventListener('DOMContentLoaded', () => {
           resultsDiv.innerHTML += `<div style="margin-bottom:24px;"><b>Assistant:</b><br>${marked.parse(message.content)}</div>`;
         }
       });
-      
+
       // Highlight code blocks
       Prism.highlightAll();
-      
+
       // Scroll to bottom
       setTimeout(() => {
         resultsDiv.scrollTop = resultsDiv.scrollHeight;
       }, 0);
-      
+
     } catch (err) {
       console.error('Failed to load conversation:', err);
     }
@@ -143,14 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save user message to database
     if (window.electronAPI) {
       try {
-        console.log('Saving user message:', userMsg);
         const result = await window.electronAPI.saveMessage('user', userMsg);
         if (result) {
-          console.log('User message saved successfully');
-          // Refresh recent chats list after user message
           setTimeout(() => loadRecentChats(), 100);
-        } else {
-          console.log('Database not available - message not saved');
         }
       } catch (err) {
         console.error('Failed to save user message:', err);
@@ -162,30 +160,23 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
     }, 0);
 
-    // Load current settings from JSON file
+    // Load current settings
     let settings = {
       apiKey: '',
-      model: selectedModel,
-      maxTokens: 30000
+      model: selectedModel || 'mercury-2',
+      maxTokens: 16384
     };
-    
+
     if (window.electronAPI) {
       try {
-        const loadedSettings = await window.electronAPI.loadSettings();
-        settings = loadedSettings;
-        console.log('Loaded settings for API call:', { 
-          hasCustomApiKey: !!(loadedSettings.apiKey && loadedSettings.apiKey.trim()),
-          model: loadedSettings.model, 
-          maxTokens: loadedSettings.maxTokens 
-        });
+        settings = await window.electronAPI.loadSettings();
       } catch (err) {
-        console.log('Using default settings for API call:', err);
+        console.error('Failed to load settings:', err);
       }
     }
 
     // Validate API key is set
     if (!settings.apiKey || !settings.apiKey.trim()) {
-      // Show error message in the results div
       const errorMessage = `
         <div style="padding: 20px; margin: 20px 0; background: #2d1b1b; border: 1px solid #dc3545; border-radius: 8px; color: #f8d7da;">
           <h3 style="margin: 0 0 10px 0; color: #dc3545;">⚠️ API Key Required</h3>
@@ -197,30 +188,24 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
       return;
     }
-    
-    const apiKeyToUse = settings.apiKey.trim();
-    console.log('Using API key:', apiKeyToUse.substring(0, 10) + '...' + apiKeyToUse.slice(-4));
 
+    const model = settings.model || selectedModel;
+    const reasoningToggle = document.getElementById('reasoning-toggle');
     const payload = {
-      model: settings.model || selectedModel,
+      model,
       messages: [
         { role: 'user', content: userMsg }
       ],
-      max_tokens: settings.maxTokens || 30000
+      max_tokens: settings.maxTokens || 16384,
+      ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
-
-    console.log('API call details:', { 
-      model: payload.model, 
-      maxTokens: payload.max_tokens,
-      apiKeySet: true
-    });
 
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKeyToUse}`
+          'Authorization': `Bearer ${settings.apiKey.trim()}`
         },
         body: JSON.stringify(payload)
       });
@@ -229,30 +214,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const reply = data.choices?.[0]?.message?.content || '[No response]';
       resultsDiv.innerHTML += `<div style="margin-bottom:24px;"><b>Assistant:</b><br>${marked.parse(reply)}</div>`;
       Prism.highlightAll();
-      
+
       // Save assistant message to database
       if (window.electronAPI) {
         try {
-          console.log('Saving assistant message:', reply.substring(0, 100) + '...');
           const result = await window.electronAPI.saveMessage('assistant', reply);
           if (result) {
-            console.log('Assistant message saved successfully');
-            // Refresh recent chats list after assistant message
             setTimeout(() => loadRecentChats(), 100);
-          } else {
-            console.log('Database not available - message not saved');
           }
         } catch (err) {
           console.error('Failed to save assistant message:', err);
         }
       }
-      
+
       // Scroll to bottom after assistant reply
       setTimeout(() => {
         resultsDiv.scrollTop = resultsDiv.scrollHeight;
       }, 0);
     } catch (err) {
-      resultsDiv.innerHTML += `<div style="color:#ff6b6b;"><b>Error:</b> ${err.message}</div>`;
+      const errDiv = document.createElement('div');
+      errDiv.style.color = '#ff6b6b';
+      errDiv.innerHTML = '<b>Error:</b> ';
+      errDiv.appendChild(document.createTextNode(err.message));
+      resultsDiv.appendChild(errDiv);
       setTimeout(() => {
         resultsDiv.scrollTop = resultsDiv.scrollHeight;
       }, 0);

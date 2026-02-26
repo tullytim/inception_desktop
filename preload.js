@@ -37,8 +37,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuAction: (callback) => ipcRenderer.on('menu:action', callback),
   onMenuCommand: (eventName, callback) => ipcRenderer.on(eventName, callback),
   
-  // Remove listeners
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  // Remove listeners (restricted to known channels)
+  removeAllListeners: (channel) => {
+    const allowedChannels = ['menu:action', 'menu:new-chat'];
+    if (allowedChannels.includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    }
+  },
   
   // Database functions
   createConversation: (title) => ipcRenderer.invoke('db:create-conversation', title),

@@ -531,6 +531,58 @@ SOFTWARE.
       display: flex;
       gap: 12px;
     }
+
+    .toggle-wrap {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .toggle-label {
+      font-size: 0.8em;
+      color: #9ca3af;
+      user-select: none;
+    }
+    body.light-theme .toggle-label {
+      color: #64748b;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #374151;
+      border-radius: 20px;
+      transition: background 0.2s;
+    }
+    .toggle-slider:before {
+      content: '';
+      position: absolute;
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: #6b7280;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(16px);
+      background: white;
+    }
     
     .chat-input-area .bottom-btn {
       background: #2d3142 !important;
@@ -713,6 +765,7 @@ SOFTWARE.
         Settings
       </button>
     </div>
+    <div style="padding: 12px 20px 20px 20px; color: #4b5563; font-size: 0.75em;" id="sidebar-version"></div>
   </div>
   
   <div class="main-content" id="main-content">
@@ -736,14 +789,45 @@ SOFTWARE.
             <svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>
           </button>
         </div>
+        <div class="toggle-wrap" id="reasoning-toggle-wrap">
+          <span class="toggle-label">Instant Reasoning</span>
+          <label class="toggle-switch" title="Enable reasoning_effort: instant">
+            <input type="checkbox" id="reasoning-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
         <select id="model-select" class="model-select">
           <option value="mercury-coder">Mercury Coder</option>
-          <option value="mercury" selected>Mercury</option>
+          <option value="mercury">Mercury</option>
+          <option value="mercury-2" selected>Mercury 2</option>
         </select>
       </div>
     </div>
   </div>
   
+  <!-- API Key Prompt Modal -->
+  <div class="modal" id="api-key-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">API Key Required</h2>
+      </div>
+      <div class="modal-body">
+        <p style="margin: 0 0 16px 0; color: #b0b3c0; font-size: 0.95em;">
+          Enter your Inception Labs API key to get started. It will be saved to
+          <code style="background: #181a20; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">~/.inception</code>.
+        </p>
+        <div class="setting-item">
+          <label class="setting-label" for="api-key-prompt-input">API Key</label>
+          <input type="password" id="api-key-prompt-input" class="setting-input" placeholder="Enter your API key...">
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 8px;">
+          <button id="api-key-prompt-skip" style="flex: 1; padding: 12px; background: #2d3142; color: #9ca3af; border: 1px solid #374151; border-radius: 8px; font-size: 1em; cursor: pointer;">Skip for now</button>
+          <button id="api-key-prompt-save" style="flex: 2; padding: 12px; background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%); color: white; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 500;">Save API Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Modal -->
   <div class="modal" id="settings-modal">
     <div class="modal-content">
@@ -764,14 +848,15 @@ SOFTWARE.
           <select id="model-setting" class="setting-input">
             <option value="mercury-coder-small">Mercury Coder Small</option>
             <option value="mercury-coder-large">Mercury Coder Large</option>
-            <option value="mercury" selected>Mercury</option>
+            <option value="mercury">Mercury</option>
+            <option value="mercury-2" selected>Mercury 2</option>
           </select>
           <div class="setting-description">Choose your preferred AI model</div>
         </div>
         <div class="setting-item">
           <label class="setting-label" for="max-tokens-input">Max Tokens</label>
-          <input type="number" id="max-tokens-input" class="setting-input" value="30000" min="100" max="50000">
-          <div class="setting-description">Maximum number of tokens in response (100-50000)</div>
+          <input type="number" id="max-tokens-input" class="setting-input" value="16384" min="1" max="16384">
+          <div class="setting-description">Maximum number of tokens in response (1–16384)</div>
         </div>
         <div class="setting-item">
           <label class="setting-label" for="theme-setting">Theme</label>
@@ -841,10 +926,35 @@ SOFTWARE.
              }
         }
      });
-     marked.use({html:true, gfm:true});
+     marked.use({html:false, gfm:true});
   </script>
   <script src="renderer.js"></script>
   <script>
+    const MODEL_MAX_TOKENS = {
+      'mercury': 16384,
+      'mercury-2': 16384,
+      'mercury-coder': 16384,
+      'mercury-coder-small': 16384,
+      'mercury-coder-large': 16384,
+    };
+    function getMaxTokensForModel(model) {
+      return MODEL_MAX_TOKENS[model] || 16384;
+    }
+    function updateReasoningToggleVisibility(model) {
+      const wrap = document.getElementById('reasoning-toggle-wrap');
+      wrap.style.display = model === 'mercury-2' ? 'flex' : 'none';
+    }
+
+    function applyMaxTokensForModel(model) {
+      const max = getMaxTokensForModel(model);
+      const input = document.getElementById('max-tokens-input');
+      input.max = max;
+      document.querySelector('label[for="max-tokens-input"] + input + .setting-description').textContent =
+        `Maximum number of tokens in response (1\u2013${max})`;
+      // Clamp existing value if it exceeds the new max
+      if (parseInt(input.value) > max) input.value = max;
+    }
+
     // Sidebar toggle functionality
     const hamburgerBtn = document.getElementById('hamburger-btn');
     const sidebar = document.getElementById('sidebar');
@@ -894,11 +1004,9 @@ SOFTWARE.
             break;
           case 'recents':
             // TODO: Show recent chats
-            console.log('Recents clicked');
             break;
           case 'settings':
             // Settings functionality moved to bottom button
-            console.log('Settings clicked');
             break;
         }
         
@@ -938,8 +1046,13 @@ SOFTWARE.
         try {
           const settings = await window.electronAPI.loadSettings();
           document.getElementById('api-key-input').value = settings.apiKey || '';
-          document.getElementById('model-setting').value = settings.model || 'mercury';
-          document.getElementById('max-tokens-input').value = settings.maxTokens || 30000;
+          const currentModel = settings.model || 'mercury-2';
+          document.getElementById('model-setting').value = currentModel;
+          applyMaxTokensForModel(currentModel);
+          const modelMax = getMaxTokensForModel(currentModel);
+          const savedTokens = settings.maxTokens;
+          // Use saved value only if it's a valid custom value below the model max; otherwise use model max
+          document.getElementById('max-tokens-input').value = (savedTokens && savedTokens <= modelMax) ? savedTokens : modelMax;
           document.getElementById('theme-setting').value = settings.theme || 'dark';
         } catch (error) {
           console.error('Error loading settings:', error);
@@ -955,11 +1068,10 @@ SOFTWARE.
           const settings = {
             apiKey: document.getElementById('api-key-input').value,
             model: document.getElementById('model-setting').value,
-            maxTokens: parseInt(document.getElementById('max-tokens-input').value) || 30000,
+            maxTokens: parseInt(document.getElementById('max-tokens-input').value) || getMaxTokensForModel(document.getElementById('model-setting').value),
             theme: document.getElementById('theme-setting').value
           };
           await window.electronAPI.saveSettings(settings);
-          console.log('Settings saved successfully');
           
           // Update the model dropdown in the main UI
           document.getElementById('model-select').value = settings.model;
@@ -973,8 +1085,12 @@ SOFTWARE.
     // Add event listener for model setting changes in the modal
     document.getElementById('model-setting').addEventListener('change', async function(e) {
       const selectedModel = e.target.value;
-      console.log('Model changed in settings to:', selectedModel);
-      
+
+      // Update max tokens and reasoning toggle for the newly selected model
+      applyMaxTokensForModel(selectedModel);
+      document.getElementById('max-tokens-input').value = getMaxTokensForModel(selectedModel);
+      updateReasoningToggleVisibility(selectedModel);
+
       // Update the main dropdown immediately
       document.getElementById('model-select').value = selectedModel;
       
@@ -984,7 +1100,6 @@ SOFTWARE.
           const currentSettings = await window.electronAPI.loadSettings() || {};
           currentSettings.model = selectedModel;
           await window.electronAPI.saveSettings(currentSettings);
-          console.log('Model preference saved from settings:', selectedModel);
         } catch (error) {
           console.error('Error saving model preference from settings:', error);
         }
@@ -1015,24 +1130,32 @@ SOFTWARE.
         try {
           const settings = await window.electronAPI.loadSettings();
           // Set the saved model or default to 'mercury'
-          const savedModel = settings?.model || 'mercury';
+          const savedModel = settings?.model || 'mercury-2';
           modelSelect.value = savedModel;
-          console.log('Initial settings loaded, model set to:', savedModel);
+          updateReasoningToggleVisibility(savedModel);
+
+          // Show API key prompt if no key is configured
+          if (!settings?.apiKey || !settings.apiKey.trim()) {
+            document.getElementById('api-key-modal').classList.add('open');
+            setTimeout(() => document.getElementById('api-key-prompt-input').focus(), 300);
+          }
         } catch (error) {
           console.error('Error loading initial settings:', error);
           // Default to 'mercury' on error
-          modelSelect.value = 'mercury';
+          modelSelect.value = 'mercury-2';
+          document.getElementById('api-key-modal').classList.add('open');
         }
       } else {
         // Default to 'mercury' if no electronAPI
-        modelSelect.value = 'mercury';
+        modelSelect.value = 'mercury-2';
       }
       
       // Add event listener to auto-save when dropdown changes
       modelSelect.addEventListener('change', async function(e) {
         const selectedModel = e.target.value;
-        console.log('Model changed to:', selectedModel);
-        
+
+        updateReasoningToggleVisibility(selectedModel);
+
         // Update the settings modal dropdown immediately
         document.getElementById('model-setting').value = selectedModel;
         
@@ -1042,7 +1165,6 @@ SOFTWARE.
             const currentSettings = await window.electronAPI.loadSettings() || {};
             currentSettings.model = selectedModel;
             await window.electronAPI.saveSettings(currentSettings);
-            console.log('Model preference saved:', selectedModel);
           } catch (error) {
             console.error('Error saving model preference:', error);
           }
@@ -1050,8 +1172,40 @@ SOFTWARE.
       });
     }
     
+    // API key prompt modal handlers
+    document.getElementById('api-key-prompt-save').addEventListener('click', async () => {
+      const apiKey = document.getElementById('api-key-prompt-input').value.trim();
+      if (!apiKey) return;
+
+      if (window.electronAPI) {
+        const currentSettings = await window.electronAPI.loadSettings() || {};
+        currentSettings.apiKey = apiKey;
+        await window.electronAPI.saveSettings(currentSettings);
+      }
+
+      document.getElementById('api-key-modal').classList.remove('open');
+      // Keep the settings modal input in sync
+      document.getElementById('api-key-input').value = apiKey;
+    });
+
+    document.getElementById('api-key-prompt-skip').addEventListener('click', () => {
+      document.getElementById('api-key-modal').classList.remove('open');
+    });
+
+    document.getElementById('api-key-prompt-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('api-key-prompt-save').click();
+      if (e.key === 'Escape') document.getElementById('api-key-modal').classList.remove('open');
+    });
+
     // Load settings when page loads
     loadInitialSettings();
+
+    // Display app version in sidebar
+    if (window.electronAPI) {
+      window.electronAPI.getVersion().then(v => {
+        document.getElementById('sidebar-version').textContent = `v${v}`;
+      }).catch(() => {});
+    }
     
     // Theme management functions
     function applyTheme(theme) {
@@ -1079,7 +1233,6 @@ SOFTWARE.
           const currentSettings = await window.electronAPI.loadSettings() || {};
           currentSettings.theme = newTheme;
           await window.electronAPI.saveSettings(currentSettings);
-          console.log('Theme preference saved:', newTheme);
         } catch (error) {
           console.error('Error saving theme preference:', error);
         }
@@ -1089,7 +1242,6 @@ SOFTWARE.
     // Add event listener for theme setting changes
     document.getElementById('theme-setting').addEventListener('change', async function(e) {
       const selectedTheme = e.target.value;
-      console.log('Theme changed to:', selectedTheme);
       
       // Apply theme immediately
       applyTheme(selectedTheme);
@@ -1104,7 +1256,6 @@ SOFTWARE.
         try {
           const settings = await window.electronAPI.loadSettings();
           const savedTheme = settings?.theme || 'dark';
-          console.log('Initial theme loaded:', savedTheme);
           applyTheme(savedTheme);
         } catch (error) {
           console.error('Error loading initial theme:', error);
@@ -1123,7 +1274,6 @@ SOFTWARE.
         try {
           const settings = await window.electronAPI.loadSettings();
           if (settings?.theme === 'auto') {
-            console.log('System theme changed, reapplying auto theme');
             applyTheme('auto');
           }
         } catch (error) {

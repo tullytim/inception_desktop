@@ -24,6 +24,7 @@
 
 const { app, BrowserWindow, Menu, Tray, ipcMain, dialog } = require('electron');
 const path = require('path');
+const os = require('os');
 const Database = require('better-sqlite3');
 
 // Database setup
@@ -32,10 +33,8 @@ let db;
 function initDatabase() {
   try {
     const dbPath = path.join(app.getPath('userData'), 'inception-chat.db');
-    console.log('Initializing database at:', dbPath);
     db = new Database(dbPath);
-    console.log('Database connected successfully');
-    
+
     // Create tables
     db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
@@ -44,7 +43,7 @@ function initDatabase() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-      
+
       CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conversation_id INTEGER,
@@ -54,13 +53,7 @@ function initDatabase() {
         FOREIGN KEY (conversation_id) REFERENCES conversations (id)
       );
     `);
-    console.log('Database tables created successfully');
-    
-    // Check existing conversations on startup
-    const existingConversations = db.prepare('SELECT COUNT(*) as count FROM conversations').get();
-    
-    const existingMessages = db.prepare('SELECT COUNT(*) as count FROM messages').get();
-    
+
     // Reset currentConversationId on startup (don't continue old conversations)
     currentConversationId = null;
   } catch (error) {
@@ -97,11 +90,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
-  // Check for API key after window is ready
-  mainWindow.webContents.once('dom-ready', async () => {
-    await checkApiKey();
-  });
-
   // Handle window close event - minimize to tray instead of quitting
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -122,171 +110,6 @@ function createWindow() {
   });
 }
 
-async function checkApiKey() {
-  try {
-    // Load current settings
-    const settingsPath = path.join(app.getPath('userData'), 'settings.json');
-    let settings;
-    
-    try {
-      const content = await fs.readFile(settingsPath, 'utf8');
-      settings = JSON.parse(content);
-    } catch (error) {
-      // Use default settings if file doesn't exist
-      settings = {
-        apiKey: '',
-        model: 'mercury-coder-small',
-        maxTokens: 30000,
-        theme: 'dark'
-      };
-    }
-    
-    // Check if API key is empty
-    if (!settings.apiKey || settings.apiKey.trim() === '') {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'API Key Required',
-        message: 'API Key Required',
-        detail: 'You need to provide an API key to use Inception Chat. Please enter your API key below:',
-        buttons: ['OK', 'Cancel'],
-        defaultId: 0,
-        cancelId: 1
-      });
-      
-      if (result.response === 0) {
-        // User clicked OK, now get the API key
-        const apiKey = await promptForApiKey();
-        if (apiKey && apiKey.trim() !== '') {
-          settings.apiKey = apiKey.trim();
-          // Save the updated settings
-          await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
-          console.log('API key saved successfully');
-        } else {
-          console.log('No API key provided');
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error checking API key:', error);
-  }
-}
-
-async function promptForApiKey() {
-  return new Promise((resolve) => {
-    // Create a simple input dialog using the renderer process
-    const dialogWindow = new BrowserWindow({
-      width: 400,
-      height: 200,
-      modal: true,
-      parent: mainWindow,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js')
-      },
-      show: false,
-      resizable: false,
-      minimizable: false,
-      maximizable: false,
-      icon: path.join(__dirname, 'assets/256.png')
-    });
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Enter API Key</title>
-        <style>
-          body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            padding: 20px; 
-            margin: 0; 
-            background: #f5f5f5;
-          }
-          .container { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          }
-          label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-weight: 500; 
-          }
-          input { 
-            width: 100%; 
-            padding: 8px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            font-size: 14px; 
-            box-sizing: border-box;
-          }
-          .buttons { 
-            margin-top: 20px; 
-            text-align: right; 
-          }
-          button { 
-            padding: 8px 16px; 
-            margin-left: 8px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 14px;
-          }
-          .ok { 
-            background: #007AFF; 
-            color: white; 
-          }
-          .cancel { 
-            background: #f0f0f0; 
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <label for="apiKey">Enter your API Key:</label>
-          <input type="password" id="apiKey" placeholder="Enter your API key..." autofocus>
-          <div class="buttons">
-            <button class="cancel" onclick="cancel()">Cancel</button>
-            <button class="ok" onclick="submit()">OK</button>
-          </div>
-        </div>
-        <script>
-          function submit() {
-            const apiKey = document.getElementById('apiKey').value;
-            window.electronAPI.sendApiKey(apiKey);
-          }
-          function cancel() {
-            window.electronAPI.sendApiKey('');
-          }
-          document.getElementById('apiKey').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') submit();
-            if (e.key === 'Escape') cancel();
-          });
-        </script>
-      </body>
-      </html>
-    `;
-
-    dialogWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
-    
-    // Handle the API key response
-    const handleApiKey = (event, apiKey) => {
-      dialogWindow.close();
-      resolve(apiKey);
-    };
-    
-    ipcMain.once('api-key-response', handleApiKey);
-    
-    dialogWindow.on('closed', () => {
-      ipcMain.removeListener('api-key-response', handleApiKey);
-      resolve('');
-    });
-    
-    dialogWindow.show();
-  });
-}
 
 function createTray() {
   // Only create tray on macOS for now
@@ -304,10 +127,7 @@ function createTray() {
       return;
     }
     
-    console.log('Creating tray with icon at:', trayIconPath);
-    
     tray = new Tray(trayIconPath);
-    console.log('Tray created successfully');
     
     // Set tooltip
     tray.setToolTip('Inception Chat');
@@ -441,42 +261,28 @@ ipcMain.handle('db:create-conversation', async (event, title) => {
 
 ipcMain.handle('db:save-message', async (event, role, content) => {
   if (!db) return null;
-  console.log('save-message called:', { role, content, currentConversationId });
-  
+
   try {
-    // Create a new conversation for each user message
     if (role === 'user') {
-      currentConversationId = null; // Reset to create new conversation
+      currentConversationId = null;
     }
-    
+
     if (!currentConversationId) {
-      // Create a new conversation if none exists
       const title = content.length > 50 ? content.substring(0, 50) + '...' : content;
-      console.log('Creating new conversation with title:', title);
       try {
         const stmt = db.prepare('INSERT INTO conversations (title) VALUES (?)');
         const result = stmt.run(title);
         currentConversationId = result.lastInsertRowid;
-        console.log('New conversation created with ID:', currentConversationId);
       } catch (convError) {
         console.error('Error creating conversation:', convError);
         return null;
       }
-    } else {
-      console.log('Using existing conversation ID:', currentConversationId);
     }
-    
-    console.log('Saving message to conversation:', currentConversationId);
+
     try {
       const stmt = db.prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)');
       const result = stmt.run(currentConversationId, role, content);
-      console.log('Message saved with ID:', result.lastInsertRowid);
-      
-      // Update conversation updated_at
-      const updateStmt = db.prepare('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-      updateStmt.run(currentConversationId);
-      console.log('Conversation updated_at timestamp updated');
-      
+      db.prepare('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(currentConversationId);
       return result.lastInsertRowid;
     } catch (msgError) {
       console.error('Error saving message:', msgError);
@@ -519,9 +325,6 @@ ipcMain.handle('db:debug-contents', async () => {
   try {
     const conversations = db.prepare('SELECT * FROM conversations ORDER BY updated_at DESC').all();
     const messages = db.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 50').all();
-    
-    console.log('DEBUG - All conversations:', conversations);
-    console.log('DEBUG - Recent messages:', messages);
     
     return {
       conversations,
@@ -629,6 +432,19 @@ Menu.setApplicationMenu(menu);
 
 const fs = require('fs').promises;
 
+function getInceptionConfigPath() {
+  return path.join(os.homedir(), '.inception', 'config.json');
+}
+
+async function ensureInceptionDir() {
+  const dir = path.join(os.homedir(), '.inception');
+  try {
+    await fs.mkdir(dir, { recursive: true });
+  } catch (e) {
+    // already exists
+  }
+}
+
 // Handle file dialogs
 ipcMain.handle('dialog:openFile', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
@@ -663,17 +479,19 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
 
-// Handle API key response from dialog
-ipcMain.on('api-key-response', (event, apiKey) => {
-  // This is handled in the promptForApiKey function
-});
-
 // Settings file handlers
 ipcMain.handle('settings:save', async (event, settings) => {
   try {
+    // Save API key to ~/.inception/config.json
+    if (settings.apiKey !== undefined) {
+      await ensureInceptionDir();
+      await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey: settings.apiKey }, null, 2));
+    }
+
+    // Save other settings (without apiKey) to userData/settings.json
+    const { apiKey, ...otherSettings } = settings;
     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
-    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
-    console.log('Settings saved to:', settingsPath);
+    await fs.writeFile(settingsPath, JSON.stringify(otherSettings, null, 2));
     return true;
   } catch (error) {
     console.error('Error saving settings:', error);
@@ -682,20 +500,44 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
+  const defaults = { model: 'mercury-2', maxTokens: 16384, theme: 'dark' };
+
+  // Load non-key settings from userData/settings.json
+  let otherSettings = { ...defaults };
   try {
     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
     const content = await fs.readFile(settingsPath, 'utf8');
-    const settings = JSON.parse(content);
-    console.log('Settings loaded from:', settingsPath);
-    return settings;
-  } catch (error) {
-    console.log('No existing settings file found or error reading settings:', error.message);
-    // Return default settings if file doesn't exist
-    return {
-      apiKey: '',
-      model: 'mercury-coder-small',
-      maxTokens: 30000,
-      theme: 'dark'
-    };
+    const parsed = JSON.parse(content);
+    const { apiKey: _legacy, ...rest } = parsed; // strip any legacy apiKey
+    otherSettings = { ...defaults, ...rest };
+  } catch (e) {
+    // use defaults
   }
+
+  // Load API key from ~/.inception; migrate from legacy settings.json if needed
+  let apiKey = '';
+  try {
+    const content = await fs.readFile(getInceptionConfigPath(), 'utf8');
+    apiKey = JSON.parse(content).apiKey || '';
+  } catch (e) {
+    // Check for legacy apiKey in settings.json and migrate it
+    try {
+      const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+      const content = await fs.readFile(settingsPath, 'utf8');
+      const parsed = JSON.parse(content);
+      if (parsed.apiKey) {
+        apiKey = parsed.apiKey;
+        // Migrate to ~/.inception/config.json
+        await ensureInceptionDir();
+        await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey }, null, 2));
+        // Remove from settings.json
+        const { apiKey: _removed, ...rest } = parsed;
+        await fs.writeFile(settingsPath, JSON.stringify(rest, null, 2));
+      }
+    } catch (_) {
+      // no legacy key either
+    }
+  }
+
+  return { ...otherSettings, apiKey };
 });
