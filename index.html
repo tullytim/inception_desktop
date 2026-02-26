@@ -730,6 +730,59 @@ SOFTWARE.
       color: #b0b3c0;
       margin-top: 4px;
     }
+
+    /* Chat message bubble layout */
+    .message-row {
+      display: flex;
+      margin-bottom: 20px;
+      padding: 0 16px;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+    }
+
+    .message-row.assistant {
+      justify-content: flex-start;
+    }
+
+    .message-bubble {
+      max-width: 78%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      line-height: 1.6;
+      font-size: 0.97em;
+      word-break: break-word;
+    }
+
+    .message-row.user .message-bubble {
+      background: #0f3326;
+      color: #d1fae5;
+      border-bottom-right-radius: 4px;
+      border: 1px solid #1e5c40;
+    }
+
+    .message-row.assistant .message-bubble {
+      background: #23262f;
+      color: #e6e6e6;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #2d3142;
+    }
+
+    .message-bubble p:first-child { margin-top: 0; }
+    .message-bubble p:last-child  { margin-bottom: 0; }
+
+    body.light-theme .message-row.user .message-bubble {
+      background: #dcfce7;
+      color: #14532d;
+      border: 1px solid #bbf7d0;
+    }
+
+    body.light-theme .message-row.assistant .message-bubble {
+      background: #f1f5f9;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
+    }
   </style>
 </head>
 <body>

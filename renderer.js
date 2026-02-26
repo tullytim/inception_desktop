@@ -30,6 +30,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
 
+  function createMessageElement(role, htmlContent) {
+    const row = document.createElement('div');
+    row.className = `message-row ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    bubble.innerHTML = htmlContent;
+    row.appendChild(bubble);
+    return row;
+  }
+
   const API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
 
   // Load recent chats on startup
@@ -114,17 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Display all messages from the conversation
       messages.forEach(message => {
-        const isUser = message.role === 'user';
-        const wrapper = document.createElement('div');
-        wrapper.style.marginBottom = isUser ? '16px' : '24px';
-        const label = document.createElement('b');
-        label.textContent = isUser ? 'You:' : 'Assistant:';
-        const content = document.createElement('div');
-        content.innerHTML = marked.parse(message.content);
-        wrapper.appendChild(label);
-        wrapper.appendChild(document.createElement('br'));
-        wrapper.appendChild(content);
-        resultsDiv.appendChild(wrapper);
+        resultsDiv.appendChild(createMessageElement(message.role, marked.parse(message.content)));
       });
 
       // Highlight code blocks
@@ -146,16 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedModel = modelSelect.value;
     if (!userMsg) return;
 
-    const userWrapper = document.createElement('div');
-    userWrapper.style.marginBottom = '16px';
-    const userLabel = document.createElement('b');
-    userLabel.textContent = 'You:';
-    const userContent = document.createElement('div');
-    userContent.innerHTML = marked.parse(userMsg);
-    userWrapper.appendChild(userLabel);
-    userWrapper.appendChild(document.createElement('br'));
-    userWrapper.appendChild(userContent);
-    resultsDiv.appendChild(userWrapper);
+    resultsDiv.appendChild(createMessageElement('user', marked.parse(userMsg)));
     chatInput.value = '';
 
     // Save user message to database
@@ -241,16 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
-      const assistantWrapper = document.createElement('div');
-      assistantWrapper.style.marginBottom = '24px';
-      const assistantLabel = document.createElement('b');
-      assistantLabel.textContent = 'Assistant:';
-      const assistantContent = document.createElement('div');
-      assistantContent.innerHTML = marked.parse(reply);
-      assistantWrapper.appendChild(assistantLabel);
-      assistantWrapper.appendChild(document.createElement('br'));
-      assistantWrapper.appendChild(assistantContent);
-      resultsDiv.appendChild(assistantWrapper);
+      resultsDiv.appendChild(createMessageElement('assistant', marked.parse(reply)));
       Prism.highlightAll();
 
       // Save assistant message to database
