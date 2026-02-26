@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div style="padding: 20px; margin: 20px 0; background: #2d1b1b; border: 1px solid #dc3545; border-radius: 8px; color: #f8d7da;">
           <h3 style="margin: 0 0 10px 0; color: #dc3545;">⚠️ API Key Required</h3>
           <p style="margin: 0;">Please set your Inception Labs API key in the settings before making requests.</p>
-          <p style="margin: 10px 0 0 0; font-size: 0.9em; opacity: 0.8;">Click the settings button (⚙️) at the bottom to configure your API key.</p>
+          <p style="margin: 10px 0 0 0; font-size: 0.9em; opacity: 0.8;">Click the settings button (⚙️) at the bottom to configure your API key, or <a href="https://platform.inceptionlabs.ai/dashboard/api-keys" target="_blank" style="color: #f8d7da;">get one here →</a></p>
         </div>
       `;
       resultsDiv.innerHTML += errorMessage;
