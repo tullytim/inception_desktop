@@ -2,7 +2,7 @@
 
 A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercury models, built with Electron.
 
-![Inception Chat](assets/inception.png)
+![Inception Chat](images/inception.png)
 
 ## Features
 
