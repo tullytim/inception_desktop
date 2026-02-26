@@ -66,6 +66,24 @@ function initDatabase() {
 let mainWindow;
 let tray;
 
+function isSafeExternalUrl(raw) {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    // Block localhost, loopback, and private-network addresses
+    if (host === 'localhost' || host === '[::1]') return false;
+    if (/^127\./.test(host)) return false;
+    if (/^(10|192\.168)\./.test(host)) return false;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false;
+    // Block embedded credentials
+    if (parsed.username || parsed.password) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function createWindow() {
   // Initialize database
   initDatabase();
@@ -78,6 +96,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,    // Security best practice
       contextIsolation: true,    // Security best practice
+      sandbox: true,             // Security best practice
       preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, 'assets/256.png') // App icon
@@ -85,6 +104,22 @@ function createWindow() {
 
   // Load the app
   mainWindow.loadFile('index.html');
+
+  // Prevent navigation away from the app (blocks malicious links from navigating the window)
+  const appOrigin = `file://${__dirname}`;
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(appOrigin)) {
+      event.preventDefault();
+    }
+  });
+
+  // Prevent new windows from being opened; open external links in the system browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      require('electron').shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
 
   // Open DevTools in development
   if (process.env.NODE_ENV === 'development') {
@@ -408,10 +443,12 @@ const template = [
   {
     label: 'View',
     submenu: [
-      { role: 'reload' },
-      { role: 'forceReload' },
-      { role: 'toggleDevTools' },
-      { type: 'separator' },
+      ...(process.env.NODE_ENV === 'development' ? [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+      ] : []),
       { role: 'resetZoom' },
       { role: 'zoomIn' },
       { role: 'zoomOut' },
@@ -450,7 +487,7 @@ function getInceptionConfigPath() {
 async function ensureInceptionDir() {
   const dir = path.join(os.homedir(), '.inception');
   try {
-    await fs.mkdir(dir, { recursive: true });
+    await fs.mkdir(dir, { recursive: true, mode: 0o700 });
   } catch (e) {
     // already exists
   }
@@ -498,7 +535,7 @@ ipcMain.handle('app:getVersion', () => {
 });
 
 const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-coder', 'mercury-coder-small', 'mercury-coder-large'];
-const ALLOWED_THEMES = ['dark', 'light'];
+const ALLOWED_THEMES = ['dark', 'light', 'auto'];
 const MAX_TOKENS_LIMIT = 16384;
 
 // Settings file handlers
@@ -510,7 +547,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
     if (settings.apiKey !== undefined) {
       if (typeof settings.apiKey !== 'string') return false;
       await ensureInceptionDir();
-      await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey: settings.apiKey }, null, 2));
+      await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey: settings.apiKey }, null, 2), { mode: 0o600 });
     }
 
     // Allowlist and validate each field before writing to disk
@@ -547,8 +584,13 @@ ipcMain.handle('settings:load', async () => {
     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
     const content = await fs.readFile(settingsPath, 'utf8');
     const parsed = JSON.parse(content);
-    const { apiKey: _legacy, ...rest } = parsed; // strip any legacy apiKey
-    otherSettings = { ...defaults, ...rest };
+    // Only pick known keys to prevent untrusted data from reaching the renderer
+    if (parsed.model && ALLOWED_MODELS.includes(parsed.model)) otherSettings.model = parsed.model;
+    if (parsed.maxTokens != null) {
+      const t = parseInt(parsed.maxTokens, 10);
+      if (Number.isInteger(t) && t >= 1 && t <= MAX_TOKENS_LIMIT) otherSettings.maxTokens = t;
+    }
+    if (parsed.theme && ALLOWED_THEMES.includes(parsed.theme)) otherSettings.theme = parsed.theme;
   } catch (e) {
     // use defaults
   }
@@ -557,18 +599,19 @@ ipcMain.handle('settings:load', async () => {
   let apiKey = '';
   try {
     const content = await fs.readFile(getInceptionConfigPath(), 'utf8');
-    apiKey = JSON.parse(content).apiKey || '';
+    const parsed_apiKey = JSON.parse(content).apiKey;
+    apiKey = (typeof parsed_apiKey === 'string') ? parsed_apiKey : '';
   } catch (e) {
     // Check for legacy apiKey in settings.json and migrate it
     try {
       const settingsPath = path.join(app.getPath('userData'), 'settings.json');
       const content = await fs.readFile(settingsPath, 'utf8');
       const parsed = JSON.parse(content);
-      if (parsed.apiKey) {
+      if (parsed.apiKey && typeof parsed.apiKey === 'string') {
         apiKey = parsed.apiKey;
         // Migrate to ~/.inception/config.json
         await ensureInceptionDir();
-        await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey }, null, 2));
+        await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey }, null, 2), { mode: 0o600 });
         // Remove from settings.json
         const { apiKey: _removed, ...rest } = parsed;
         await fs.writeFile(settingsPath, JSON.stringify(rest, null, 2));

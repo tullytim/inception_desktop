@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "main.js",
   "name": "inception",
   "productName": "Inception",
@@ -22,6 +22,8 @@
       "main.js",
       "renderer.js",
       "preload.js",
+      "marked-config.js",
+      "app.js",
       "index.html",
       "package.json",
       "assets/",

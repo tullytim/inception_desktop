@@ -26,8 +26,8 @@ SOFTWARE.
 <head>
   <meta charset="UTF-8">
   <title>Inception</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.inceptionlabs.ai; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.inceptionlabs.ai; img-src 'self' data: https://framerusercontent.com;">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism.min.css">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.inceptionlabs.ai; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.inceptionlabs.ai; img-src 'self' data: https://framerusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism.min.css" integrity="sha384-rCCjoCPCsizaAAYVoz1Q0CmCTvnctK0JkfCSjx7IIxexTBg+uCKtFYycedUjMyA2" crossorigin="anonymous">
   <style>
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -734,7 +734,7 @@ SOFTWARE.
     /* Chat message bubble layout */
     .message-row {
       display: flex;
-      margin-bottom: 20px;
+      margin-bottom: 32px;
       padding: 0 16px;
     }
 
@@ -771,6 +771,39 @@ SOFTWARE.
 
     .message-bubble p:first-child { margin-top: 0; }
     .message-bubble p:last-child  { margin-bottom: 0; }
+
+    /* Scrollbar — thin & subtle, like Claude desktop */
+    #results::-webkit-scrollbar,
+    .recents-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #results::-webkit-scrollbar-track,
+    .recents-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #results::-webkit-scrollbar-thumb,
+    .recents-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 999px;
+      transition: background 0.2s;
+    }
+
+    #results::-webkit-scrollbar-thumb:hover,
+    .recents-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    body.light-theme #results::-webkit-scrollbar-thumb,
+    body.light-theme .recents-container::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
+    }
+
+    body.light-theme #results::-webkit-scrollbar-thumb:hover,
+    body.light-theme .recents-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.24);
+    }
 
     body.light-theme .message-row.user .message-bubble {
       background: #dcfce7;
@@ -876,7 +909,7 @@ SOFTWARE.
         <p style="margin: 0 0 16px 0; color: #b0b3c0; font-size: 0.95em;">
           Enter your Inception Labs API key to get started. It will be saved to
           <code style="background: #181a20; padding: 2px 6px; border-radius: 4px; font-size: 0.85em;">~/.inception</code>.
-          Don't have one? <a href="https://platform.inceptionlabs.ai/dashboard/api-keys" target="_blank" style="color: #6ee7b7; text-decoration: none;">Get an API key →</a>
+          Don't have one? <a href="https://platform.inceptionlabs.ai/dashboard/api-keys" target="_blank" rel="noopener noreferrer" style="color: #6ee7b7; text-decoration: none;">Get an API key →</a>
         </p>
         <div class="setting-item">
           <label class="setting-label" for="api-key-prompt-input">API Key</label>
@@ -932,388 +965,12 @@ SOFTWARE.
       </div>
     </div>
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/plugins/autoloader/prism-autoloader.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script>
-    marked.setOptions({
-        highlight: function(code, lang) {
-             if (Prism.languages[lang]) {
-               return Prism.highlight(code, Prism.languages[lang], lang);
-             } else {
-               return code;
-             }
-        }
-     });
-     marked.use({
-       html: false,
-       gfm: true,
-       walkTokens(token) {
-         if ((token.type === 'link' || token.type === 'image') && token.href) {
-           const lower = token.href.trim().toLowerCase();
-           if (lower.startsWith('javascript:') || lower.startsWith('vbscript:')) {
-             token.href = '';
-           }
-         }
-       }
-     });
-  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/prism.min.js" integrity="sha384-xAgN7OCsK5s0d3G18tqRYrxy8hWsPA14E26TMh7Mi9ZM09vaz4EA0DBTl+80F5yC" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha384-Uq05+JLko69eOiPr39ta9bh7kld5PKZoU+fF7g0EXTAriEollhZ+DrN8Q/Oi8J2Q" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" integrity="sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous"></script>
+  <script src="marked-config.js"></script>
   <script src="renderer.js"></script>
-  <script>
-    const MODEL_MAX_TOKENS = {
-      'mercury': 16384,
-      'mercury-2': 16384,
-      'mercury-coder': 16384,
-      'mercury-coder-small': 16384,
-      'mercury-coder-large': 16384,
-    };
-    function getMaxTokensForModel(model) {
-      return MODEL_MAX_TOKENS[model] || 16384;
-    }
-    function updateReasoningToggleVisibility(model) {
-      const wrap = document.getElementById('reasoning-toggle-wrap');
-      wrap.style.display = model === 'mercury-2' ? 'flex' : 'none';
-    }
-
-    function applyMaxTokensForModel(model) {
-      const max = getMaxTokensForModel(model);
-      const input = document.getElementById('max-tokens-input');
-      input.max = max;
-      document.querySelector('label[for="max-tokens-input"] + input + .setting-description').textContent =
-        `Maximum number of tokens in response (1\u2013${max})`;
-      // Clamp existing value if it exceeds the new max
-      if (parseInt(input.value) > max) input.value = max;
-    }
-
-    // Sidebar toggle functionality
-    const hamburgerBtn = document.getElementById('hamburger-btn');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const mainContent = document.getElementById('main-content');
-    
-    function toggleSidebar() {
-      const isOpen = sidebar.classList.contains('open');
-      
-      if (isOpen) {
-        sidebar.classList.remove('open');
-        sidebarOverlay.classList.remove('open');
-        mainContent.classList.remove('sidebar-open');
-      } else {
-        sidebar.classList.add('open');
-        sidebarOverlay.classList.add('open');
-        mainContent.classList.add('sidebar-open');
-      }
-    }
-    
-    hamburgerBtn.addEventListener('click', toggleSidebar);
-    sidebarOverlay.addEventListener('click', toggleSidebar);
-    
-    // Sidebar menu actions
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        // Remove active class from all items
-        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-        // Add active class to clicked item
-        e.target.classList.add('active');
-        
-        const action = e.target.dataset.action;
-        switch(action) {
-          case 'new-chat':
-            // Clear the chat
-            document.getElementById('results').innerHTML = '';
-            // Clear the input field
-            document.getElementById('chat-input').value = '';
-            // Start new chat in database
-            if (window.electronAPI) {
-              window.electronAPI.newChat();
-            }
-            // Dispatch event to refresh recent chats
-            setTimeout(() => {
-              document.dispatchEvent(new CustomEvent('refreshRecentChats'));
-            }, 100);
-            break;
-          case 'recents':
-            // TODO: Show recent chats
-            break;
-          case 'settings':
-            // Settings functionality moved to bottom button
-            break;
-        }
-        
-        // Close sidebar on mobile after selection
-        if (window.innerWidth <= 768) {
-          toggleSidebar();
-        }
-      });
-    });
-    
-    // Bottom buttons functionality
-    const clearChatBtn = document.getElementById('clear-chat-btn');
-    const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const modalClose = document.getElementById('modal-close');
-    
-    // Clear chat functionality
-    clearChatBtn.addEventListener('click', () => {
-      // Clear the chat
-      document.getElementById('results').innerHTML = '';
-      // Clear the input field
-      document.getElementById('chat-input').value = '';
-      // Start new chat in database
-      if (window.electronAPI) {
-        window.electronAPI.newChat();
-      }
-      // Dispatch event to refresh recent chats
-      setTimeout(() => {
-        document.dispatchEvent(new CustomEvent('refreshRecentChats'));
-      }, 100);
-    });
-    
-    // Settings modal functionality
-    settingsBtn.addEventListener('click', async () => {
-      // Load settings when opening modal
-      if (window.electronAPI) {
-        try {
-          const settings = await window.electronAPI.loadSettings();
-          document.getElementById('api-key-input').value = settings.apiKey || '';
-          const currentModel = settings.model || 'mercury-2';
-          document.getElementById('model-setting').value = currentModel;
-          applyMaxTokensForModel(currentModel);
-          const modelMax = getMaxTokensForModel(currentModel);
-          const savedTokens = settings.maxTokens;
-          // Use saved value only if it's a valid custom value below the model max; otherwise use model max
-          document.getElementById('max-tokens-input').value = (savedTokens && savedTokens <= modelMax) ? savedTokens : modelMax;
-          document.getElementById('theme-setting').value = settings.theme || 'dark';
-        } catch (error) {
-          console.error('Error loading settings:', error);
-        }
-      }
-      settingsModal.classList.add('open');
-    });
-    
-    async function closeModal() {
-      // Save settings when closing modal
-      if (window.electronAPI) {
-        try {
-          const settings = {
-            apiKey: document.getElementById('api-key-input').value,
-            model: document.getElementById('model-setting').value,
-            maxTokens: parseInt(document.getElementById('max-tokens-input').value) || getMaxTokensForModel(document.getElementById('model-setting').value),
-            theme: document.getElementById('theme-setting').value
-          };
-          await window.electronAPI.saveSettings(settings);
-          
-          // Update the model dropdown in the main UI
-          document.getElementById('model-select').value = settings.model;
-        } catch (error) {
-          console.error('Error saving settings:', error);
-        }
-      }
-      settingsModal.classList.remove('open');
-    }
-    
-    // Add event listener for model setting changes in the modal
-    document.getElementById('model-setting').addEventListener('change', async function(e) {
-      const selectedModel = e.target.value;
-
-      // Update max tokens and reasoning toggle for the newly selected model
-      applyMaxTokensForModel(selectedModel);
-      document.getElementById('max-tokens-input').value = getMaxTokensForModel(selectedModel);
-      updateReasoningToggleVisibility(selectedModel);
-
-      // Update the main dropdown immediately
-      document.getElementById('model-select').value = selectedModel;
-      
-      if (window.electronAPI) {
-        try {
-          // Load current settings and update model
-          const currentSettings = await window.electronAPI.loadSettings() || {};
-          currentSettings.model = selectedModel;
-          await window.electronAPI.saveSettings(currentSettings);
-        } catch (error) {
-          console.error('Error saving model preference from settings:', error);
-        }
-      }
-    });
-    
-    modalClose.addEventListener('click', closeModal);
-    
-    // Close modal when clicking outside
-    settingsModal.addEventListener('click', (e) => {
-      if (e.target === settingsModal) {
-        closeModal();
-      }
-    });
-    
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && settingsModal.classList.contains('open')) {
-        closeModal();
-      }
-    });
-    
-    // Load settings on page startup and set up auto-save
-    async function loadInitialSettings() {
-      const modelSelect = document.getElementById('model-select');
-      
-      if (window.electronAPI) {
-        try {
-          const settings = await window.electronAPI.loadSettings();
-          // Set the saved model or default to 'mercury'
-          const savedModel = settings?.model || 'mercury-2';
-          modelSelect.value = savedModel;
-          updateReasoningToggleVisibility(savedModel);
-
-          // Show API key prompt if no key is configured
-          if (!settings?.apiKey || !settings.apiKey.trim()) {
-            document.getElementById('api-key-modal').classList.add('open');
-            setTimeout(() => document.getElementById('api-key-prompt-input').focus(), 300);
-          }
-        } catch (error) {
-          console.error('Error loading initial settings:', error);
-          // Default to 'mercury' on error
-          modelSelect.value = 'mercury-2';
-          document.getElementById('api-key-modal').classList.add('open');
-        }
-      } else {
-        // Default to 'mercury' if no electronAPI
-        modelSelect.value = 'mercury-2';
-      }
-      
-      // Add event listener to auto-save when dropdown changes
-      modelSelect.addEventListener('change', async function(e) {
-        const selectedModel = e.target.value;
-
-        updateReasoningToggleVisibility(selectedModel);
-
-        // Update the settings modal dropdown immediately
-        document.getElementById('model-setting').value = selectedModel;
-        
-        if (window.electronAPI) {
-          try {
-            // Load current settings and update model
-            const currentSettings = await window.electronAPI.loadSettings() || {};
-            currentSettings.model = selectedModel;
-            await window.electronAPI.saveSettings(currentSettings);
-          } catch (error) {
-            console.error('Error saving model preference:', error);
-          }
-        }
-      });
-    }
-    
-    // API key prompt modal handlers
-    document.getElementById('api-key-prompt-save').addEventListener('click', async () => {
-      const apiKey = document.getElementById('api-key-prompt-input').value.trim();
-      if (!apiKey) return;
-
-      if (window.electronAPI) {
-        const currentSettings = await window.electronAPI.loadSettings() || {};
-        currentSettings.apiKey = apiKey;
-        await window.electronAPI.saveSettings(currentSettings);
-      }
-
-      document.getElementById('api-key-modal').classList.remove('open');
-      // Keep the settings modal input in sync
-      document.getElementById('api-key-input').value = apiKey;
-    });
-
-    document.getElementById('api-key-prompt-skip').addEventListener('click', () => {
-      document.getElementById('api-key-modal').classList.remove('open');
-    });
-
-    document.getElementById('api-key-prompt-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('api-key-prompt-save').click();
-      if (e.key === 'Escape') document.getElementById('api-key-modal').classList.remove('open');
-    });
-
-    // Load settings when page loads
-    loadInitialSettings();
-
-    // Display app version in sidebar
-    if (window.electronAPI) {
-      window.electronAPI.getVersion().then(v => {
-        document.getElementById('sidebar-version').textContent = `v${v}`;
-      }).catch(() => {});
-    }
-    
-    // Theme management functions
-    function applyTheme(theme) {
-      const body = document.body;
-      
-      // Remove existing theme classes
-      body.classList.remove('light-theme');
-      
-      if (theme === 'light') {
-        body.classList.add('light-theme');
-      } else if (theme === 'auto') {
-        // Check system preference
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (!prefersDark) {
-          body.classList.add('light-theme');
-        }
-      }
-      // 'dark' theme is the default, no class needed
-    }
-    
-    // Auto-save theme changes
-    async function saveThemeChange(newTheme) {
-      if (window.electronAPI) {
-        try {
-          const currentSettings = await window.electronAPI.loadSettings() || {};
-          currentSettings.theme = newTheme;
-          await window.electronAPI.saveSettings(currentSettings);
-        } catch (error) {
-          console.error('Error saving theme preference:', error);
-        }
-      }
-    }
-    
-    // Add event listener for theme setting changes
-    document.getElementById('theme-setting').addEventListener('change', async function(e) {
-      const selectedTheme = e.target.value;
-      
-      // Apply theme immediately
-      applyTheme(selectedTheme);
-      
-      // Save the theme preference
-      await saveThemeChange(selectedTheme);
-    });
-    
-    // Load and apply initial theme
-    async function loadInitialTheme() {
-      if (window.electronAPI) {
-        try {
-          const settings = await window.electronAPI.loadSettings();
-          const savedTheme = settings?.theme || 'dark';
-          applyTheme(savedTheme);
-        } catch (error) {
-          console.error('Error loading initial theme:', error);
-          // Default to dark theme on error
-          applyTheme('dark');
-        }
-      } else {
-        // Default to dark theme if no electronAPI
-        applyTheme('dark');
-      }
-    }
-    
-    // Listen for system theme changes when in auto mode
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async (e) => {
-      if (window.electronAPI) {
-        try {
-          const settings = await window.electronAPI.loadSettings();
-          if (settings?.theme === 'auto') {
-            applyTheme('auto');
-          }
-        } catch (error) {
-          console.error('Error checking theme setting on system change:', error);
-        }
-      }
-    });
-    
-    // Load theme when page loads
-    loadInitialTheme();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>

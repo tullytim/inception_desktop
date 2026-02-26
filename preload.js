@@ -34,14 +34,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   
   // Custom events
-  onMenuAction: (callback) => ipcRenderer.on('menu:action', callback),
+  onMenuAction: (callback) => ipcRenderer.on('menu:action', (_event, ...args) => callback(...args)),
   onMenuCommand: (eventName, callback) => {
     const allowedChannels = ['menu:action', 'menu:new-chat'];
     if (allowedChannels.includes(eventName)) {
-      ipcRenderer.on(eventName, callback);
+      ipcRenderer.on(eventName, (_event, ...args) => callback(...args));
     }
   },
-  
+
   // Remove listeners (restricted to known channels)
   removeAllListeners: (channel) => {
     const allowedChannels = ['menu:action', 'menu:new-chat'];
@@ -59,8 +59,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Settings functions
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
-  loadSettings: () => ipcRenderer.invoke('settings:load'),
-  
-  // API key dialog
-  sendApiKey: (apiKey) => ipcRenderer.send('api-key-response', apiKey)
+  loadSettings: () => ipcRenderer.invoke('settings:load')
 });

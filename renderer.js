@@ -30,12 +30,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
 
+  function sanitize(html) {
+    if (typeof DOMPurify !== 'undefined') {
+      return DOMPurify.sanitize(html);
+    }
+    // DOMPurify failed to load — escape all HTML to prevent XSS
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+  }
+
+  const VALID_ROLES = ['user', 'assistant'];
+
   function createMessageElement(role, htmlContent) {
+    const safeRole = VALID_ROLES.includes(role) ? role : 'assistant';
     const row = document.createElement('div');
-    row.className = `message-row ${role}`;
+    row.className = `message-row ${safeRole}`;
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    bubble.innerHTML = htmlContent;
+    bubble.innerHTML = sanitize(htmlContent);
     row.appendChild(bubble);
     return row;
   }
