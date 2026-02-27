@@ -75,15 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'message-row assistant';
     row.id = 'typing-indicator-row';
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = 'I';
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     const dots = document.createElement('div');
     dots.className = 'typing-indicator';
     dots.innerHTML = '<span></span><span></span><span></span>';
     bubble.appendChild(dots);
+    row.appendChild(avatar);
     row.appendChild(bubble);
     resultsDiv.appendChild(row);
-    resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    row.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function hideTypingIndicator() {
@@ -129,10 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const safeRole = VALID_ROLES.includes(role) ? role : 'assistant';
     const row = document.createElement('div');
     row.className = `message-row ${safeRole}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = safeRole === 'user' ? 'Y' : 'I';
+
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     bubble.innerHTML = sanitize(htmlContent);
     enhanceCodeBlocks(bubble);
+
+    row.appendChild(avatar);
     row.appendChild(bubble);
     return row;
   }
@@ -239,7 +250,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!userMsg) return;
 
     hideWelcome();
-    resultsDiv.appendChild(createMessageElement('user', marked.parse(userMsg)));
+    const userRow = createMessageElement('user', marked.parse(userMsg));
+    resultsDiv.appendChild(userRow);
     chatInput.value = '';
     chatInput.style.height = 'auto';
     autoGrow();
@@ -256,9 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Scroll to bottom after user message
+    // Scroll so the user message is visible at the top
     setTimeout(() => {
-      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+      userRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 0);
 
     // Load current settings
@@ -330,7 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
-      resultsDiv.appendChild(createMessageElement('assistant', marked.parse(reply)));
+      const assistantRow = createMessageElement('assistant', marked.parse(reply));
+      resultsDiv.appendChild(assistantRow);
       Prism.highlightAll();
 
       // Save assistant message to database
@@ -345,9 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Scroll to bottom after assistant reply
+      // Scroll so the user question remains visible with the reply below it
       setTimeout(() => {
-        resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        userRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
     } catch (err) {
       hideTypingIndicator();
@@ -357,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
       errDiv.appendChild(document.createTextNode(err.message));
       resultsDiv.appendChild(errDiv);
       setTimeout(() => {
-        resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        errDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
     }
   });
