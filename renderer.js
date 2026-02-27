@@ -29,15 +29,98 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatInput = document.getElementById('chat-input');
   const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
+  const welcomeState = document.getElementById('welcome-state');
 
   function sanitize(html) {
     if (typeof DOMPurify !== 'undefined') {
       return DOMPurify.sanitize(html);
     }
-    // DOMPurify failed to load — escape all HTML to prevent XSS
     const div = document.createElement('div');
     div.textContent = html;
     return div.innerHTML;
+  }
+
+  // ── Auto-growing textarea ──
+  function autoGrow() {
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + 'px';
+    chatInput.style.overflowY = chatInput.scrollHeight > 160 ? 'auto' : 'hidden';
+  }
+  chatInput.addEventListener('input', autoGrow);
+
+  // Submit on Enter, newline on Shift+Enter
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+  });
+
+  // ── Welcome state ──
+  function hideWelcome() {
+    if (welcomeState) welcomeState.style.display = 'none';
+  }
+
+  // Welcome prompt buttons
+  document.querySelectorAll('.welcome-prompt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chatInput.value = btn.dataset.prompt;
+      autoGrow();
+      chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    });
+  });
+
+  // ── Typing indicator ──
+  function showTypingIndicator() {
+    const row = document.createElement('div');
+    row.className = 'message-row assistant';
+    row.id = 'typing-indicator-row';
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    const dots = document.createElement('div');
+    dots.className = 'typing-indicator';
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    bubble.appendChild(dots);
+    row.appendChild(bubble);
+    resultsDiv.appendChild(row);
+    resultsDiv.scrollTop = resultsDiv.scrollHeight;
+  }
+
+  function hideTypingIndicator() {
+    const indicator = document.getElementById('typing-indicator-row');
+    if (indicator) indicator.remove();
+  }
+
+  // ── Code block enhancements ──
+  function enhanceCodeBlocks(container) {
+    container.querySelectorAll('pre').forEach(pre => {
+      if (pre.querySelector('.code-block-header')) return;
+      const code = pre.querySelector('code');
+      if (!code) return;
+
+      const langMatch = code.className.match(/language-(\w+)/);
+      const lang = langMatch ? langMatch[1] : 'code';
+
+      const header = document.createElement('div');
+      header.className = 'code-block-header';
+
+      const langLabel = document.createElement('span');
+      langLabel.textContent = lang;
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'code-copy-btn';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(code.textContent).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+      });
+
+      header.appendChild(langLabel);
+      header.appendChild(copyBtn);
+      pre.insertBefore(header, pre.firstChild);
+    });
   }
 
   const VALID_ROLES = ['user', 'assistant'];
@@ -49,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     bubble.innerHTML = sanitize(htmlContent);
+    enhanceCodeBlocks(bubble);
     row.appendChild(bubble);
     return row;
   }
@@ -64,15 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen for menu events from main process
   if (window.electronAPI && window.electronAPI.onMenuCommand) {
     window.electronAPI.onMenuCommand('menu:new-chat', () => {
-      // Clear the chat
       resultsDiv.innerHTML = '';
-      // Clear the input field
       chatInput.value = '';
-      // Start new chat in database
+      if (welcomeState) welcomeState.style.display = '';
       if (window.electronAPI) {
         window.electronAPI.newChat();
       }
-      // Refresh recent chats
       setTimeout(() => {
         loadRecentChats();
       }, 100);
@@ -132,15 +213,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const messages = await window.electronAPI.getConversationMessages(conversationId);
 
-      // Clear current results
+      hideWelcome();
       resultsDiv.innerHTML = '';
 
-      // Display all messages from the conversation
       messages.forEach(message => {
         resultsDiv.appendChild(createMessageElement(message.role, marked.parse(message.content)));
       });
 
-      // Highlight code blocks
       Prism.highlightAll();
 
       // Scroll to bottom
@@ -159,8 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedModel = modelSelect.value;
     if (!userMsg) return;
 
+    hideWelcome();
     resultsDiv.appendChild(createMessageElement('user', marked.parse(userMsg)));
     chatInput.value = '';
+    chatInput.style.height = 'auto';
+    autoGrow();
 
     // Save user message to database
     if (window.electronAPI) {
@@ -233,6 +315,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
 
+    showTypingIndicator();
+
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -242,6 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         body: JSON.stringify(payload)
       });
+      hideTypingIndicator();
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
@@ -265,6 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsDiv.scrollTop = resultsDiv.scrollHeight;
       }, 0);
     } catch (err) {
+      hideTypingIndicator();
       const errDiv = document.createElement('div');
       errDiv.style.color = '#ff6b6b';
       errDiv.innerHTML = '<b>Error:</b> ';
