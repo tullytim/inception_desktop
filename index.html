@@ -309,7 +309,7 @@ SOFTWARE.
     #results {
       flex: 1;
       padding: 32px 0 180px 0;
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
@@ -335,7 +335,7 @@ SOFTWARE.
       box-shadow: var(--shadow-lg), var(--shadow-glow);
       padding: 0;
       border-radius: var(--radius-xl);
-      max-width: 800px;
+      max-width: 1000px;
       width: calc(100% - 40px);
       border: 1px solid var(--border-subtle);
       backdrop-filter: blur(24px) saturate(1.4);
@@ -359,7 +359,7 @@ SOFTWARE.
       align-items: flex-end;
       gap: 12px;
       width: 100%;
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
       padding: 16px 20px 8px 20px;
       border: none;
@@ -664,7 +664,7 @@ SOFTWARE.
       justify-content: space-between;
       align-items: center;
       padding: 6px 20px 14px 20px;
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
       width: 100%;
     }
@@ -916,7 +916,7 @@ SOFTWARE.
     }
 
     .message-bubble {
-      max-width: 75%;
+      max-width: 90%;
       padding: 14px 18px;
       border-radius: 18px;
       line-height: 1.65;
@@ -1451,12 +1451,7 @@ SOFTWARE.
       <img src="images/inception.png" alt="Inception Logo" />
       <div class="welcome-title">Inception</div>
       <div class="welcome-subtitle">What can I help you with?</div>
-      <div class="welcome-prompts">
-        <button class="welcome-prompt-btn" data-prompt="Explain quantum computing in simple terms"><span class="prompt-icon">&#x2728;</span>Explain quantum computing in simple terms</button>
-        <button class="welcome-prompt-btn" data-prompt="Write a Python function to sort a list"><span class="prompt-icon">&#x1F4BB;</span>Write a Python function to sort a list</button>
-        <button class="welcome-prompt-btn" data-prompt="What are the best practices for REST APIs?"><span class="prompt-icon">&#x1F680;</span>Best practices for REST APIs?</button>
-        <button class="welcome-prompt-btn" data-prompt="Help me debug a segmentation fault"><span class="prompt-icon">&#x1F41B;</span>Help me debug a segmentation fault</button>
-      </div>
+      <div class="welcome-prompts" id="welcome-prompts"></div>
     </div>
     <div id="results"></div>
     <div class="chat-input-area">

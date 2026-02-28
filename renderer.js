@@ -61,6 +61,50 @@ document.addEventListener('DOMContentLoaded', () => {
     if (welcomeState) welcomeState.style.display = 'none';
   }
 
+  // Populate welcome prompts from pool
+  (function() {
+    const allPrompts = [
+      { icon: '✨', label: 'Explain quantum computing in simple terms' },
+      { icon: '💻', label: 'Write a Python function to sort a list' },
+      { icon: '🚀', label: 'Best practices for REST APIs?' },
+      { icon: '🐛', label: 'Help me debug a segmentation fault' },
+      { icon: '🎨', label: 'Design a color palette for a dark-themed app' },
+      { icon: '🧠', label: 'Explain how neural networks learn' },
+      { icon: '🔒', label: 'How do I securely store passwords?' },
+      { icon: '📈', label: 'Analyze the time complexity of my algorithm' },
+      { icon: '⚡', label: 'How can I make my website load faster?' },
+      { icon: '🛠', label: 'Help me set up a CI/CD pipeline' },
+      { icon: '🤖', label: 'Build a Discord bot in JavaScript' },
+      { icon: '🗃', label: 'Design a database schema for an e-commerce app' },
+      { icon: '🌐', label: 'Explain how DNS works step by step' },
+      { icon: '📱', label: 'Make this layout responsive for mobile' },
+      { icon: '🧪', label: 'Write unit tests for my function' },
+      { icon: '🔍', label: 'Review my code for security vulnerabilities' },
+      { icon: '💡', label: 'Suggest a tech stack for a startup MVP' },
+      { icon: '📝', label: 'Write a clear README for my project' },
+      { icon: '🧱', label: 'Explain microservices vs monoliths' },
+      { icon: '🎲', label: 'Build a simple game with HTML Canvas' },
+      { icon: '🔗', label: 'How do I use WebSockets for real-time data?' },
+      { icon: '📊', label: 'Visualize this data with a chart in Python' },
+      { icon: '🤔', label: 'What is the difference between SQL and NoSQL?' },
+      { icon: '🚢', label: 'Help me containerize my app with Docker' },
+    ];
+    for (let i = allPrompts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allPrompts[i], allPrompts[j]] = [allPrompts[j], allPrompts[i]];
+    }
+    const container = document.getElementById('welcome-prompts');
+    if (container) {
+      allPrompts.slice(0, 4).forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'welcome-prompt-btn';
+        btn.dataset.prompt = p.label;
+        btn.innerHTML = '<span class="prompt-icon">' + p.icon + '</span>' + p.label;
+        container.appendChild(btn);
+      });
+    }
+  })();
+
   // Welcome prompt buttons
   document.querySelectorAll('.welcome-prompt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
