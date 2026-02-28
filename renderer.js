@@ -227,15 +227,18 @@ document.addEventListener('DOMContentLoaded', () => {
       hideWelcome();
       resultsDiv.innerHTML = '';
 
+      let firstRow = null;
       messages.forEach(message => {
-        resultsDiv.appendChild(createMessageElement(message.role, marked.parse(message.content)));
+        const row = createMessageElement(message.role, marked.parse(message.content));
+        if (!firstRow) firstRow = row;
+        resultsDiv.appendChild(row);
       });
 
       Prism.highlightAll();
 
-      // Scroll to bottom
+      // Scroll to the first message
       setTimeout(() => {
-        resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
 
     } catch (err) {
