@@ -4,6 +4,8 @@ A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercur
 
 ![Inception Chat](images/inception.png)
 
+![Inception Chat](images/inception_ss.png)
+
 ## Features
 
 - Chat with Mercury AI models via the Inception Labs API
