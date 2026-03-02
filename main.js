@@ -35,6 +35,11 @@ function initDatabase() {
     const dbPath = path.join(app.getPath('userData'), 'inception-chat.db');
     db = new Database(dbPath);
 
+    // Enable WAL mode for crash safety and set synchronous writes
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+    db.pragma('foreign_keys = ON');
+
     // Create tables
     db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (

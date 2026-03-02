@@ -1,5 +1,5 @@
 {
-  "version": "1.0.7",
+  "version": "1.0.8",
   "main": "main.js",
   "name": "inception",
   "productName": "Inception",
@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "build": "electron-builder --mac --win --linux",
     "build-win": "electron-builder --win",
     "build-mac": "electron-builder --mac",
@@ -15,6 +16,11 @@
   },
   "build": {
     "appId": "com.timtully.inception",
+    "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
     "directories": {
       "output": "dist"
     },
