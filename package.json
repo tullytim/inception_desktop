@@ -1,5 +1,5 @@
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "main": "main.js",
   "name": "inception",
   "productName": "Inception",
@@ -38,7 +38,12 @@
     "mac": {
       "icon": "assets/512-mac.png",
       "category": "public.app-category.productivity",
-      "identity": "74F28C20CD02E35ACFFF7F3B0A5384265EF9976F"
+      "identity": "479D9E8C16D4252131A6F65507C6004E7B14CE88",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist",
+      "notarize": true
     },
     "win": {
       "target": "nsis"
