@@ -548,11 +548,25 @@ ipcMain.handle('settings:save', async (event, settings) => {
   if (!settings || typeof settings !== 'object') return false;
 
   try {
-    // Save API key to ~/.inception/config.json
-    if (settings.apiKey !== undefined) {
-      if (typeof settings.apiKey !== 'string') return false;
+    // Save API keys to ~/.inception/config.json
+    if (settings.apiKey !== undefined || settings.openRouterApiKey !== undefined) {
       await ensureInceptionDir();
-      await fs.writeFile(getInceptionConfigPath(), JSON.stringify({ apiKey: settings.apiKey }, null, 2), { mode: 0o600 });
+      // Load existing config to merge keys
+      let existingConfig = {};
+      try {
+        const content = await fs.readFile(getInceptionConfigPath(), 'utf8');
+        existingConfig = JSON.parse(content);
+      } catch (e) { /* no existing config */ }
+
+      if (settings.apiKey !== undefined) {
+        if (typeof settings.apiKey !== 'string') return false;
+        existingConfig.apiKey = settings.apiKey;
+      }
+      if (settings.openRouterApiKey !== undefined) {
+        if (typeof settings.openRouterApiKey !== 'string') return false;
+        existingConfig.openRouterApiKey = settings.openRouterApiKey;
+      }
+      await fs.writeFile(getInceptionConfigPath(), JSON.stringify(existingConfig, null, 2), { mode: 0o600 });
     }
 
     // Allowlist and validate each field before writing to disk
@@ -600,12 +614,14 @@ ipcMain.handle('settings:load', async () => {
     // use defaults
   }
 
-  // Load API key from ~/.inception; migrate from legacy settings.json if needed
+  // Load API keys from ~/.inception; migrate from legacy settings.json if needed
   let apiKey = '';
+  let openRouterApiKey = '';
   try {
     const content = await fs.readFile(getInceptionConfigPath(), 'utf8');
-    const parsed_apiKey = JSON.parse(content).apiKey;
-    apiKey = (typeof parsed_apiKey === 'string') ? parsed_apiKey : '';
+    const parsed = JSON.parse(content);
+    apiKey = (typeof parsed.apiKey === 'string') ? parsed.apiKey : '';
+    openRouterApiKey = (typeof parsed.openRouterApiKey === 'string') ? parsed.openRouterApiKey : '';
   } catch (e) {
     // Check for legacy apiKey in settings.json and migrate it
     try {
@@ -626,5 +642,5 @@ ipcMain.handle('settings:load', async () => {
     }
   }
 
-  return { ...otherSettings, apiKey };
+  return { ...otherSettings, apiKey, openRouterApiKey };
 });

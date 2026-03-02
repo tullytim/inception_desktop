@@ -192,7 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return row;
   }
 
-  const API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
+  const INCEPTION_API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
+  const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
   // Load recent chats on startup
   loadRecentChats();
@@ -335,8 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Validate API key is set
-    if (!settings.apiKey || !settings.apiKey.trim()) {
+    // Determine which API to use: prefer Inception Labs key, fall back to OpenRouter
+    const hasInceptionKey = settings.apiKey && settings.apiKey.trim();
+    const hasOpenRouterKey = settings.openRouterApiKey && settings.openRouterApiKey.trim();
+
+    if (!hasInceptionKey && !hasOpenRouterKey) {
       const errBox = document.createElement('div');
       errBox.style.cssText = 'padding:20px;margin:20px 0;background:#2d1b1b;border:1px solid #dc3545;border-radius:8px;color:#f8d7da;';
       const heading = document.createElement('h3');
@@ -344,17 +348,10 @@ document.addEventListener('DOMContentLoaded', () => {
       heading.textContent = '⚠️ API Key Required';
       const p1 = document.createElement('p');
       p1.style.margin = '0';
-      p1.textContent = 'Please set your Inception Labs API key in the settings before making requests.';
+      p1.textContent = 'Please set an Inception Labs or OpenRouter API key in the settings before making requests.';
       const p2 = document.createElement('p');
       p2.style.cssText = 'margin:10px 0 0 0;font-size:0.9em;opacity:0.8;';
-      p2.textContent = 'Click the settings button (⚙️) at the bottom to configure your API key, or ';
-      const link = document.createElement('a');
-      link.href = 'https://platform.inceptionlabs.ai/dashboard/api-keys';
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.style.color = '#f8d7da';
-      link.textContent = 'get one here →';
-      p2.appendChild(link);
+      p2.textContent = 'Click the settings button (⚙️) at the bottom to configure your API key.';
       errBox.appendChild(heading);
       errBox.appendChild(p1);
       errBox.appendChild(p2);
@@ -362,6 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
       return;
     }
+
+    const useOpenRouter = !hasInceptionKey && hasOpenRouterKey;
+    const activeApiUrl = useOpenRouter ? OPENROUTER_API_URL : INCEPTION_API_URL;
+    const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
 
     const model = settings.model || selectedModel;
     const reasoningToggle = document.getElementById('reasoning-toggle');
@@ -374,19 +375,51 @@ document.addEventListener('DOMContentLoaded', () => {
       ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
 
+    // When using OpenRouter, map local model names to OpenRouter model IDs
+    if (useOpenRouter && !payload.model.includes('/')) {
+      const openRouterModelMap = {
+        'mercury': 'inception/mercury',
+        'mercury-coder': 'inception/mercury-coder',
+        'mercury-coder-small': 'inception/mercury-coder-small-beta',
+        'mercury-coder-large': 'inception/mercury-coder',
+      };
+      if (!openRouterModelMap[payload.model]) {
+        const warnModal = document.getElementById('warning-modal');
+        document.getElementById('warning-modal-title').textContent = 'Model Not Available';
+        document.getElementById('warning-modal-message').textContent =
+          `"${model}" is not available on OpenRouter. Please switch to a supported model (Mercury, Mercury Coder, Mercury Coder Small) or add an Inception Labs API key in Settings.`;
+        warnModal.classList.add('open');
+        return;
+      }
+      payload.model = openRouterModelMap[payload.model];
+    }
+
     showTypingIndicator();
 
     try {
-      const res = await fetch(API_URL, {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${activeApiKey}`
+      };
+      if (useOpenRouter) {
+        headers['HTTP-Referer'] = 'https://github.com/timtully/inception-desktop';
+        headers['X-Title'] = 'Inception Desktop';
+      }
+
+      const res = await fetch(activeApiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.apiKey.trim()}`
-        },
+        headers,
         body: JSON.stringify(payload)
       });
       hideTypingIndicator();
-      if (!res.ok) throw new Error('API error');
+      if (!res.ok) {
+        let errMsg = `API error (${res.status})`;
+        try {
+          const errBody = await res.json();
+          if (errBody.error?.message) errMsg = errBody.error.message;
+        } catch (_) { /* no parseable body */ }
+        throw new Error(errMsg);
+      }
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
       const assistantRow = createMessageElement('assistant', marked.parse(reply));
