@@ -719,7 +719,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-2', maxTokens: 32000, theme: 'dark' };
+  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark' };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
