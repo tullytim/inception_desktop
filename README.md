@@ -8,12 +8,13 @@ A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercur
 
 ## Features
 
-- Chat with Mercury AI models via the Inception Labs API
+- Chat with Mercury AI models via the Inception Labs API or OpenRouter
 - Persistent conversation history stored locally with SQLite
 - Recent chats sidebar for quick access to past conversations
 - Reasoning mode toggle for Mercury 2
-- Dark, light, and auto themes
+- Dark and light themes
 - System tray support (macOS) — minimize to tray and stay running in the background
+- Auto-update — checks GitHub Releases on startup and prompts to install new versions
 - Syntax highlighting for code blocks
 - Cross-platform: macOS, Windows, Linux
 
@@ -38,8 +39,9 @@ A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercur
 
 ```bash
 npm install
-npm run rebuild  # rebuild native modules (better-sqlite3)
 ```
+
+Native modules (better-sqlite3) are rebuilt automatically via the `postinstall` script.
 
 ### Running
 
@@ -53,10 +55,14 @@ npm run dev
 
 ### Configuration
 
-On first launch, open Settings (⚙️) and enter your Inception Labs API key. Settings are stored at:
+On first launch, open Settings (⚙️) and enter your API key. Available providers:
 
-- **API key**: `~/.inception/config.json`
-- **Other settings**: Electron userData directory (`settings.json`)
+| Provider | Setting |
+|---|---|
+| Inception Labs | API key from [platform.inceptionlabs.ai](https://platform.inceptionlabs.ai/dashboard/api-keys) |
+| OpenRouter | API key from [openrouter.ai](https://openrouter.ai) |
+
+Settings (theme, model, max tokens) are saved to the Electron userData directory.
 
 ## Building
 
