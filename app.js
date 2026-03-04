@@ -121,6 +121,7 @@ settingsBtn.addEventListener('click', async () => {
       // Use saved value only if it's a valid custom value below the model max; otherwise use model max
       document.getElementById('max-tokens-input').value = (savedTokens && savedTokens <= modelMax) ? savedTokens : modelMax;
       document.getElementById('theme-setting').value = settings.theme || 'dark';
+      document.getElementById('system-prompt-input').value = settings.systemPrompt || '';
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -137,7 +138,8 @@ async function closeModal() {
         openRouterApiKey: document.getElementById('openrouter-key-input').value,
         model: document.getElementById('model-setting').value,
         maxTokens: parseInt(document.getElementById('max-tokens-input').value) || getMaxTokensForModel(document.getElementById('model-setting').value),
-        theme: document.getElementById('theme-setting').value
+        theme: document.getElementById('theme-setting').value,
+        systemPrompt: document.getElementById('system-prompt-input').value
       };
       await window.electronAPI.saveSettings(settings);
 

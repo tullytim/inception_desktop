@@ -64,6 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRecentChats: () => ipcRenderer.invoke('db:get-recent-chats'),
   getConversationMessages: (conversationId) => ipcRenderer.invoke('db:get-conversation-messages', conversationId),
   newChat: () => ipcRenderer.invoke('db:new-chat'),
+  updateConversationTitle: (title) => ipcRenderer.invoke('db:update-conversation-title', title),
+  deleteConversation: (id) => ipcRenderer.invoke('db:delete-conversation', id),
 
   // Settings functions
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),

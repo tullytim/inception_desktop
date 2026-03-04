@@ -491,6 +491,27 @@ ipcMain.handle('db:new-chat', async () => {
   return true;
 });
 
+ipcMain.handle('db:update-conversation-title', async (event, title) => {
+  if (!db || !currentConversationId) return false;
+  const safeTitle = (typeof title === 'string' && title.trim())
+    ? title.trim().substring(0, 200)
+    : null;
+  if (!safeTitle) return false;
+  db.prepare('UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(safeTitle, currentConversationId);
+  return true;
+});
+
+ipcMain.handle('db:delete-conversation', async (event, conversationId) => {
+  if (!db) return false;
+  const id = parseInt(conversationId, 10);
+  if (!Number.isInteger(id) || id <= 0) return false;
+  db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
+  db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
+  if (currentConversationId === id) currentConversationId = null;
+  return true;
+});
+
 // Debug function to check database contents (development only)
 if (process.env.NODE_ENV === 'development') {
   ipcMain.handle('db:debug-contents', async () => {
@@ -708,6 +729,10 @@ ipcMain.handle('settings:save', async (event, settings) => {
       if (!ALLOWED_THEMES.includes(settings.theme)) return false;
       safeSettings.theme = settings.theme;
     }
+    if (settings.systemPrompt !== undefined) {
+      if (typeof settings.systemPrompt !== 'string') return false;
+      safeSettings.systemPrompt = settings.systemPrompt.substring(0, 2000);
+    }
 
     const settingsPath = path.join(app.getPath('userData'), 'settings.json');
     await fs.writeFile(settingsPath, JSON.stringify(safeSettings, null, 2));
@@ -719,7 +744,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark' };
+  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark', systemPrompt: '' };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
@@ -734,6 +759,7 @@ ipcMain.handle('settings:load', async () => {
       if (Number.isInteger(t) && t >= 1 && t <= MAX_TOKENS_LIMIT) otherSettings.maxTokens = t;
     }
     if (parsed.theme && ALLOWED_THEMES.includes(parsed.theme)) otherSettings.theme = parsed.theme;
+    if (typeof parsed.systemPrompt === 'string') otherSettings.systemPrompt = parsed.systemPrompt.substring(0, 2000);
   } catch (e) {
     // use defaults
   }

@@ -22,25 +22,29 @@
  * SOFTWARE.
  */
 
-// Renderer process - handles chat UI and API calls
-
 document.addEventListener('DOMContentLoaded', () => {
   const chatForm = document.getElementById('chat-form');
   const chatInput = document.getElementById('chat-input');
   const modelSelect = document.getElementById('model-select');
   const resultsDiv = document.getElementById('results');
   const welcomeState = document.getElementById('welcome-state');
+  const submitBtn = document.getElementById('submit-btn');
+  const stopBtn = document.getElementById('stop-btn');
+
+  // Initialize Mermaid
+  if (typeof mermaid !== 'undefined') {
+    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+  }
 
   function sanitize(html) {
     if (typeof DOMPurify !== 'undefined') {
-      return DOMPurify.sanitize(html);
+      return DOMPurify.sanitize(html, { ADD_TAGS: ['details', 'summary'], ADD_ATTR: ['open'] });
     }
     const div = document.createElement('div');
     div.textContent = html;
     return div.innerHTML;
   }
 
-  // ── Auto-growing textarea ──
   function autoGrow() {
     chatInput.style.height = 'auto';
     chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + 'px';
@@ -48,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   chatInput.addEventListener('input', autoGrow);
 
-  // Submit on Enter, newline on Shift+Enter
   chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -56,12 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Welcome state ──
   function hideWelcome() {
     if (welcomeState) welcomeState.style.display = 'none';
   }
 
-  // Populate welcome prompts from pool
   (function() {
     const allPrompts = [
       { icon: '✨', label: 'Explain quantum computing in simple terms' },
@@ -105,16 +106,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })();
 
-  // Welcome prompt buttons
-  document.querySelectorAll('.welcome-prompt-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      chatInput.value = btn.dataset.prompt;
-      autoGrow();
-      chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
-    });
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.welcome-prompt-btn');
+    if (!btn) return;
+    chatInput.value = btn.dataset.prompt;
+    autoGrow();
+    chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
   });
 
-  // ── Typing indicator ──
   function showTypingIndicator() {
     const row = document.createElement('div');
     row.className = 'message-row assistant';
@@ -135,26 +134,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideTypingIndicator() {
-    const indicator = document.getElementById('typing-indicator-row');
-    if (indicator) indicator.remove();
+    const el = document.getElementById('typing-indicator-row');
+    if (el) el.remove();
   }
 
-  // ── Code block enhancements ──
   function enhanceCodeBlocks(container) {
     container.querySelectorAll('pre').forEach(pre => {
       if (pre.querySelector('.code-block-header')) return;
       const code = pre.querySelector('code');
       if (!code) return;
-
       const langMatch = code.className.match(/language-(\w+)/);
       const lang = langMatch ? langMatch[1] : 'code';
-
       const header = document.createElement('div');
       header.className = 'code-block-header';
-
       const langLabel = document.createElement('span');
       langLabel.textContent = lang;
-
       const copyBtn = document.createElement('button');
       copyBtn.className = 'code-copy-btn';
       copyBtn.textContent = 'Copy';
@@ -164,19 +158,58 @@ document.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
         });
       });
-
       header.appendChild(langLabel);
       header.appendChild(copyBtn);
       pre.insertBefore(header, pre.firstChild);
     });
   }
 
+  async function renderMermaid(container) {
+    if (typeof mermaid === 'undefined') return;
+    const blocks = container.querySelectorAll('pre code.language-mermaid');
+    for (const code of blocks) {
+      const src = code.textContent;
+      const pre = code.closest('pre');
+      try {
+        const id = 'mermaid-' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-diagram';
+        wrapper.innerHTML = svg;
+        pre.replaceWith(wrapper);
+      } catch (e) { /* leave as code block if render fails */ }
+    }
+  }
+
+  function renderMath(container) {
+    if (typeof renderMathInElement === 'undefined') return;
+    try {
+      renderMathInElement(container, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+        ],
+        throwOnError: false,
+      });
+    } catch (e) {}
+  }
+
+  async function postProcess(bubble) {
+    enhanceCodeBlocks(bubble);
+    await renderMermaid(bubble);
+    renderMath(bubble);
+    if (typeof Prism !== 'undefined') Prism.highlightAllUnder(bubble);
+  }
+
   const VALID_ROLES = ['user', 'assistant'];
 
-  function createMessageElement(role, htmlContent) {
+  function createMessageElement(role, htmlContent, rawContent, time = null) {
     const safeRole = VALID_ROLES.includes(role) ? role : 'assistant';
     const row = document.createElement('div');
     row.className = `message-row ${safeRole}`;
+    if (rawContent !== undefined) row.dataset.raw = rawContent;
 
     const avatar = document.createElement('div');
     avatar.className = 'message-avatar';
@@ -185,23 +218,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     bubble.innerHTML = sanitize(htmlContent);
-    enhanceCodeBlocks(bubble);
+
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+
+    // Copy button for all messages
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'msg-action-btn copy-msg-btn';
+    copyBtn.title = 'Copy message';
+    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy';
+    copyBtn.addEventListener('click', () => {
+      const text = row.dataset.raw || bubble.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.innerHTML = copyBtn.innerHTML.replace('Copy', 'Copied!');
+        setTimeout(() => { copyBtn.innerHTML = copyBtn.innerHTML.replace('Copied!', 'Copy'); }, 1500);
+      });
+    });
+    actions.appendChild(copyBtn);
+
+    if (safeRole === 'user') {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'msg-action-btn edit-btn';
+      editBtn.title = 'Edit message';
+      editBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Edit';
+      actions.appendChild(editBtn);
+    }
 
     row.appendChild(avatar);
     row.appendChild(bubble);
+    row.appendChild(actions);
+
+    if (time) {
+      const timeEl = document.createElement('span');
+      timeEl.className = 'msg-time';
+      timeEl.textContent = time;
+      row.appendChild(timeEl);
+    }
+
     return row;
   }
 
   const INCEPTION_API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
   const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-  // In-memory conversation history for the current session
   let conversationHistory = [];
+  let isGenerating = false;
+  let currentAbortController = null;
+  let allRecentChats = [];
 
-  // Compact history to fit within context budget.
-  // Keeps the first message (original topic anchor) and trims oldest pairs
-  // until estimated input tokens + maxTokens output budget fits within the
-  // model context window (conservatively assumed to be 128k tokens).
+  function setGenerating(val) {
+    isGenerating = val;
+    if (stopBtn) stopBtn.style.display = val ? 'flex' : 'none';
+    if (submitBtn) submitBtn.style.display = val ? 'none' : '';
+    chatInput.disabled = val;
+    if (!val) chatInput.focus();
+  }
+
   const MODEL_CONTEXT_WINDOW = 128000;
   function compactHistory(history, maxTokens) {
     if (history.length === 0) return history;
@@ -209,42 +281,404 @@ document.addEventListener('DOMContentLoaded', () => {
     const budget = MODEL_CONTEXT_WINDOW - maxTokens;
     let compacted = [...history];
     while (compacted.length > 1 && estimateTokens(compacted) > budget) {
-      // Always preserve index 0 (first user message); drop the oldest non-first pair
       const dropFrom = compacted.length > 2 ? 1 : 0;
       compacted.splice(dropFrom, 2);
     }
     return compacted;
   }
 
-  // Load recent chats on startup
+  function showWarning(title, message) {
+    const warnModal = document.getElementById('warning-modal');
+    document.getElementById('warning-modal-title').textContent = title;
+    document.getElementById('warning-modal-message').textContent = message;
+    warnModal.classList.add('open');
+  }
+
+  function updateContextBar(usage) {
+    const bar = document.getElementById('context-bar');
+    const fill = document.getElementById('context-bar-fill');
+    const text = document.getElementById('context-bar-text');
+    if (!bar || !fill || !text) return;
+    const used = (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0);
+    if (!used) return;
+    const pct = Math.min(100, (used / MODEL_CONTEXT_WINDOW) * 100);
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 80 ? '#f59e0b' : pct > 60 ? '#6ee7b7' : 'var(--accent-green)';
+    text.textContent = `${used.toLocaleString()} / ${MODEL_CONTEXT_WINDOW.toLocaleString()} tokens`;
+    bar.style.display = 'flex';
+  }
+
+  function attachRegenerateButton() {
+    resultsDiv.querySelectorAll('.regenerate-btn-row').forEach(el => el.remove());
+    const assistantRows = resultsDiv.querySelectorAll('.message-row.assistant');
+    if (!assistantRows.length) return;
+    const btnRow = document.createElement('div');
+    btnRow.className = 'regenerate-btn-row';
+    const btn = document.createElement('button');
+    btn.className = 'regenerate-btn';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Regenerate';
+    btn.addEventListener('click', handleRegenerate);
+    btnRow.appendChild(btn);
+    resultsDiv.appendChild(btnRow);
+  }
+
+  async function handleRegenerate() {
+    if (isGenerating) return;
+    if (!conversationHistory.length || conversationHistory[conversationHistory.length - 1].role !== 'assistant') return;
+    conversationHistory.pop();
+    resultsDiv.querySelectorAll('.regenerate-btn-row').forEach(el => el.remove());
+    const assistantRows = resultsDiv.querySelectorAll('.message-row.assistant');
+    if (assistantRows.length) assistantRows[assistantRows.length - 1].remove();
+    await runRequest();
+  }
+
+  function setConversationTitle(title) {
+    const el = document.getElementById('conversation-title');
+    if (el) el.textContent = title || '';
+  }
+
+  async function generateAutoTitle(firstUserMessage, apiUrl, apiKey, resolvedModel) {
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: resolvedModel,
+          messages: [{ role: 'user', content: `Write a short title (4 words or fewer) for a conversation that starts with: "${firstUserMessage.substring(0, 200)}". Reply with only the title, no quotes or punctuation.` }],
+          max_tokens: 20,
+          stream: false
+        })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const title = data.choices?.[0]?.message?.content?.trim();
+      if (title) {
+        setConversationTitle(title);
+        if (window.electronAPI) {
+          await window.electronAPI.updateConversationTitle(title);
+          setTimeout(loadRecentChats, 200);
+        }
+      }
+    } catch (e) {}
+  }
+
+  async function runRequest() {
+    let settings = { apiKey: '', model: modelSelect.value || 'mercury-2', maxTokens: 32768, systemPrompt: '' };
+    if (window.electronAPI) {
+      try { settings = await window.electronAPI.loadSettings(); } catch (e) {}
+    }
+
+    const hasInceptionKey = settings.apiKey?.trim();
+    const hasOpenRouterKey = settings.openRouterApiKey?.trim();
+    const useOpenRouter = !hasInceptionKey && hasOpenRouterKey;
+    const activeApiUrl = useOpenRouter ? OPENROUTER_API_URL : INCEPTION_API_URL;
+    const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
+    const model = settings.model || modelSelect.value || 'mercury-2';
+    const maxTokens = settings.maxTokens || 32768;
+
+    let resolvedModel;
+    if (useOpenRouter) {
+      const map = { 'mercury': 'inception/mercury', 'mercury-coder': 'inception/mercury-coder' };
+      if (!map[model]) {
+        showWarning('Model Not Available on OpenRouter',
+          `"${model}" is not available on OpenRouter. Switch to Mercury or Mercury Coder, or add an Inception Labs API key in Settings to use Mercury 2.`);
+        return;
+      }
+      resolvedModel = map[model];
+    } else {
+      const map = { 'mercury': 'mercury-edit', 'mercury-2': 'mercury-2' };
+      if (!map[model]) {
+        showWarning('Model Not Available on Inception Labs',
+          `"${model}" is not available via the Inception Labs API. Switch to Mercury or Mercury 2, or add an OpenRouter API key in Settings to use Mercury Coder.`);
+        return;
+      }
+      resolvedModel = map[model];
+    }
+
+    const reasoningToggle = document.getElementById('reasoning-toggle');
+    const messages = [];
+    if (settings.systemPrompt?.trim()) {
+      messages.push({ role: 'system', content: settings.systemPrompt.trim() });
+    }
+    messages.push(...compactHistory(conversationHistory, maxTokens));
+
+    const payload = {
+      model: resolvedModel,
+      messages,
+      max_tokens: maxTokens,
+      stream: true,
+      ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
+    };
+
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeApiKey}` };
+    if (useOpenRouter) {
+      headers['HTTP-Referer'] = 'https://github.com/tullytim/inception_desktop';
+      headers['X-Title'] = 'Inception Desktop';
+    }
+
+    // Build assistant row
+    const assistantRow = document.createElement('div');
+    assistantRow.className = 'message-row assistant';
+    const assistantAvatar = document.createElement('div');
+    assistantAvatar.className = 'message-avatar';
+    assistantAvatar.textContent = 'I';
+    const assistantBubble = document.createElement('div');
+    assistantBubble.className = 'message-bubble';
+
+    // Reasoning block (hidden until reasoning tokens arrive)
+    const reasoningDetails = document.createElement('details');
+    reasoningDetails.className = 'reasoning-block';
+    reasoningDetails.style.display = 'none';
+    const reasoningSummary = document.createElement('summary');
+    reasoningSummary.textContent = 'Thinking\u2026';
+    const reasoningContent = document.createElement('div');
+    reasoningContent.className = 'reasoning-content';
+    reasoningDetails.appendChild(reasoningSummary);
+    reasoningDetails.appendChild(reasoningContent);
+    assistantBubble.appendChild(reasoningDetails);
+
+    const streamingEl = document.createElement('div');
+    streamingEl.className = 'streaming-text active';
+    assistantBubble.appendChild(streamingEl);
+
+    assistantRow.appendChild(assistantAvatar);
+    assistantRow.appendChild(assistantBubble);
+
+    hideTypingIndicator();
+    resultsDiv.appendChild(assistantRow);
+    assistantRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    currentAbortController = new AbortController();
+    setGenerating(true);
+
+    let fullReply = '';
+    let fullReasoning = '';
+    let usage = null;
+    let errored = false;
+
+    try {
+      const res = await fetch(activeApiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: currentAbortController.signal
+      });
+
+      if (!res.ok) {
+        let errMsg = `API error (${res.status})`;
+        try { const b = await res.json(); if (b.error?.message) errMsg = b.error.message; } catch {}
+        throw new Error(errMsg);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+          try {
+            const chunk = JSON.parse(raw);
+            // Reasoning tokens
+            const reasoning = chunk.choices?.[0]?.delta?.reasoning;
+            if (reasoning) {
+              fullReasoning += reasoning;
+              reasoningDetails.style.display = '';
+              reasoningContent.textContent = fullReasoning;
+            }
+            // Content tokens
+            const token = chunk.choices?.[0]?.delta?.content;
+            if (token) {
+              fullReply += token;
+              streamingEl.textContent = fullReply;
+              assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+            }
+            if (chunk.usage) usage = chunk.usage;
+          } catch {}
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        errored = true;
+        assistantRow.remove();
+        const errDiv = document.createElement('div');
+        errDiv.style.color = '#ff6b6b';
+        errDiv.innerHTML = '<b>Error:</b> ';
+        errDiv.appendChild(document.createTextNode(err.message));
+        resultsDiv.appendChild(errDiv);
+        setGenerating(false);
+        currentAbortController = null;
+        return;
+      }
+    }
+
+    // Remove streaming cursor class
+    streamingEl.classList.remove('active');
+
+    // Final render
+    if (fullReply) {
+      streamingEl.remove();
+      const contentDiv = document.createElement('div');
+      contentDiv.innerHTML = sanitize(marked.parse(fullReply));
+      assistantBubble.appendChild(contentDiv);
+      await postProcess(contentDiv);
+    } else if (!errored) {
+      streamingEl.classList.remove('active');
+      streamingEl.textContent = '[No response]';
+    }
+
+    // Update reasoning summary now it's done
+    if (fullReasoning) {
+      reasoningSummary.textContent = 'Reasoning';
+    }
+
+    // Token usage
+    if (usage) {
+      const usageEl = document.createElement('div');
+      usageEl.className = 'token-usage';
+      usageEl.textContent = `${(usage.prompt_tokens ?? '?').toLocaleString()} in \u00b7 ${(usage.completion_tokens ?? '?').toLocaleString()} out`;
+      assistantRow.appendChild(usageEl);
+      updateContextBar(usage);
+    }
+
+    // Add action buttons and timestamp to assistant message
+    if (fullReply) {
+      assistantRow.dataset.raw = fullReply;
+      const actions = document.createElement('div');
+      actions.className = 'message-actions';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'msg-action-btn copy-msg-btn';
+      copyBtn.title = 'Copy message';
+      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(fullReply).then(() => {
+          copyBtn.innerHTML = copyBtn.innerHTML.replace('Copy', 'Copied!');
+          setTimeout(() => { copyBtn.innerHTML = copyBtn.innerHTML.replace('Copied!', 'Copy'); }, 1500);
+        });
+      });
+      actions.appendChild(copyBtn);
+      assistantRow.appendChild(actions);
+
+      const timeEl = document.createElement('span');
+      timeEl.className = 'msg-time';
+      timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      assistantRow.appendChild(timeEl);
+    }
+
+    // Save to history and DB
+    if (fullReply) {
+      conversationHistory.push({ role: 'assistant', content: fullReply });
+      if (window.electronAPI) {
+        try { await window.electronAPI.saveMessage('assistant', fullReply); } catch (e) {}
+      }
+    }
+
+    // Auto-title after first exchange
+    if (conversationHistory.length === 2 && conversationHistory[0].role === 'user') {
+      const firstMsg = conversationHistory[0].content;
+      setConversationTitle(firstMsg.length > 50 ? firstMsg.substring(0, 50) + '\u2026' : firstMsg);
+      generateAutoTitle(firstMsg, activeApiUrl, activeApiKey, resolvedModel);
+    }
+
+    attachRegenerateButton();
+    setTimeout(loadRecentChats, 100);
+    setGenerating(false);
+    currentAbortController = null;
+  }
+
+  // ── Scroll to bottom ──
+  const scrollToBottomBtn = document.getElementById('scroll-to-bottom');
+  resultsDiv.addEventListener('scroll', () => {
+    const distFromBottom = resultsDiv.scrollHeight - resultsDiv.scrollTop - resultsDiv.clientHeight;
+    scrollToBottomBtn?.classList.toggle('visible', distFromBottom > 120);
+  });
+  scrollToBottomBtn?.addEventListener('click', () => {
+    resultsDiv.scrollTo({ top: resultsDiv.scrollHeight, behavior: 'smooth' });
+  });
+
+  // ── Export conversation ──
+  function exportConversation() {
+    if (!conversationHistory.length) return;
+    const title = document.getElementById('conversation-title')?.textContent?.trim() || 'Conversation';
+    const date = new Date().toLocaleDateString();
+    let md = `# ${title}\n_Exported ${date}_\n\n`;
+    conversationHistory.forEach(m => {
+      const label = m.role === 'user' ? 'You' : 'Assistant';
+      md += `**${label}**\n\n${m.content}\n\n---\n\n`;
+    });
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('export-btn')?.addEventListener('click', exportConversation);
+
+  // ── Keyboard shortcuts ──
+  document.addEventListener('keydown', (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key === 'k') {
+      e.preventDefault();
+      // New chat
+      resultsDiv.innerHTML = '';
+      chatInput.value = '';
+      conversationHistory = [];
+      setConversationTitle('');
+      if (welcomeState) welcomeState.style.display = '';
+      if (window.electronAPI) window.electronAPI.newChat().catch(() => {});
+      setTimeout(loadRecentChats, 100);
+    }
+    if (mod && e.key === '/') {
+      e.preventDefault();
+      chatInput.focus();
+    }
+    if (e.key === 'Escape') {
+      if (isGenerating && currentAbortController) {
+        currentAbortController.abort();
+      }
+    }
+  });
+
+  // ── Load recent chats ──
   loadRecentChats();
 
-  // Listen for refresh events
   document.addEventListener('refreshRecentChats', loadRecentChats);
-  document.addEventListener('clearConversationHistory', () => { conversationHistory = []; });
+  document.addEventListener('clearConversationHistory', () => {
+    conversationHistory = [];
+    setConversationTitle('');
+  });
 
-  // Listen for menu events from main process
   if (window.electronAPI && window.electronAPI.onMenuCommand) {
     window.electronAPI.onMenuCommand('menu:new-chat', () => {
       resultsDiv.innerHTML = '';
       chatInput.value = '';
       conversationHistory = [];
+      setConversationTitle('');
       if (welcomeState) welcomeState.style.display = '';
-      if (window.electronAPI) {
-        window.electronAPI.newChat();
-      }
-      setTimeout(() => {
-        loadRecentChats();
-      }, 100);
+      if (window.electronAPI) window.electronAPI.newChat();
+      setTimeout(loadRecentChats, 100);
     });
   }
 
   async function loadRecentChats() {
     if (!window.electronAPI) return;
-
     try {
-      const recentChats = await window.electronAPI.getRecentChats();
-      displayRecentChats(recentChats);
+      allRecentChats = await window.electronAPI.getRecentChats();
+      const searchVal = (document.getElementById('chat-search')?.value || '').toLowerCase().trim();
+      displayRecentChats(searchVal ? allRecentChats.filter(c =>
+        (c.title || c.first_message || '').toLowerCase().includes(searchVal)
+      ) : allRecentChats);
     } catch (err) {
       console.error('Failed to load recent chats:', err);
     }
@@ -253,22 +687,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function displayRecentChats(chats) {
     const recentsContainer = document.getElementById('recents-list');
     if (!recentsContainer) return;
-
     recentsContainer.innerHTML = '';
-
     if (!chats || chats.length === 0) {
       recentsContainer.innerHTML = '<div style="padding: 12px 20px; color: #b0b3c0; font-size: 0.9em;">No recent chats</div>';
       return;
     }
-
     chats.forEach(chat => {
       const chatItem = document.createElement('div');
       chatItem.className = 'recent-chat-item';
       chatItem.dataset.conversationId = chat.id;
 
-      const title = chat.first_message ?
-        (chat.first_message.length > 40 ? chat.first_message.substring(0, 40) + '...' : chat.first_message) :
-        'New Chat';
+      const title = chat.title ||
+        (chat.first_message
+          ? (chat.first_message.length > 40 ? chat.first_message.substring(0, 40) + '...' : chat.first_message)
+          : 'New Chat');
 
       const date = new Date(chat.updated_at).toLocaleDateString();
 
@@ -278,107 +710,83 @@ document.addEventListener('DOMContentLoaded', () => {
       const dateEl = document.createElement('div');
       dateEl.className = 'recent-chat-date';
       dateEl.textContent = date;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-chat-btn';
+      deleteBtn.title = 'Delete conversation';
+      deleteBtn.textContent = '\u00d7';
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!window.electronAPI) return;
+        await window.electronAPI.deleteConversation(chat.id);
+        loadRecentChats();
+      });
+
       chatItem.appendChild(titleEl);
       chatItem.appendChild(dateEl);
-
-      chatItem.addEventListener('click', () => loadConversation(chat.id));
+      chatItem.appendChild(deleteBtn);
+      chatItem.addEventListener('click', () => loadConversation(chat.id, chat.title));
       recentsContainer.appendChild(chatItem);
     });
   }
 
-  async function loadConversation(conversationId) {
+  async function loadConversation(conversationId, conversationTitle) {
     if (!window.electronAPI) return;
-
     try {
       const messages = await window.electronAPI.getConversationMessages(conversationId);
-
       hideWelcome();
       resultsDiv.innerHTML = '';
       conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
+      setConversationTitle(conversationTitle || '');
 
       let firstRow = null;
-      messages.forEach(message => {
-        const row = createMessageElement(message.role, marked.parse(message.content));
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+        const row = createMessageElement(message.role, marked.parse(message.content), message.content);
+        row.dataset.historyIndex = i;
         if (!firstRow) firstRow = row;
         resultsDiv.appendChild(row);
-      });
+        await postProcess(row.querySelector('.message-bubble'));
+      }
 
-      Prism.highlightAll();
+      if (conversationHistory.length && conversationHistory[conversationHistory.length - 1].role === 'assistant') {
+        attachRegenerateButton();
+      }
 
-      // Scroll to the first message
       setTimeout(() => {
         if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
-
     } catch (err) {
       console.error('Failed to load conversation:', err);
     }
   }
 
+  // ── Submit handler ──
   chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isGenerating) return;
     const userMsg = chatInput.value.trim();
-    const selectedModel = modelSelect.value;
     if (!userMsg) return;
 
-    hideWelcome();
-    const userRow = createMessageElement('user', marked.parse(userMsg));
-    resultsDiv.appendChild(userRow);
-    chatInput.value = '';
-    chatInput.style.height = 'auto';
-    autoGrow();
-
-    // Add user message to in-memory history
-    conversationHistory.push({ role: 'user', content: userMsg });
-
-    // Save user message to database
+    let settings = {};
     if (window.electronAPI) {
-      try {
-        const result = await window.electronAPI.saveMessage('user', userMsg);
-        if (result) {
-          setTimeout(() => loadRecentChats(), 100);
-        }
-      } catch (err) {
-        console.error('Failed to save user message:', err);
-      }
+      try { settings = await window.electronAPI.loadSettings(); } catch (err) {}
     }
-
-    // Scroll so the user message is visible at the top
-    setTimeout(() => {
-      userRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 0);
-
-    // Load current settings
-    let settings = {
-      apiKey: '',
-      model: selectedModel || 'mercury-2',
-      maxTokens: 32768
-    };
-
-    if (window.electronAPI) {
-      try {
-        settings = await window.electronAPI.loadSettings();
-      } catch (err) {
-        console.error('Failed to load settings:', err);
-      }
-    }
-
-    // Determine which API to use: prefer Inception Labs key, fall back to OpenRouter
-    const hasInceptionKey = settings.apiKey && settings.apiKey.trim();
-    const hasOpenRouterKey = settings.openRouterApiKey && settings.openRouterApiKey.trim();
+    const hasInceptionKey = settings.apiKey?.trim();
+    const hasOpenRouterKey = settings.openRouterApiKey?.trim();
 
     if (!hasInceptionKey && !hasOpenRouterKey) {
       const errBox = document.createElement('div');
       errBox.style.cssText = 'padding:20px;margin:20px 0;background:#2d1b1b;border:1px solid #dc3545;border-radius:8px;color:#f8d7da;';
       const heading = document.createElement('h3');
       heading.style.cssText = 'margin:0 0 10px 0;color:#dc3545;';
-      heading.textContent = '⚠️ API Key Required';
+      heading.textContent = '\u26a0\ufe0f API Key Required';
       const p1 = document.createElement('p');
       p1.style.margin = '0';
       p1.textContent = 'Please set an Inception Labs or OpenRouter API key in the settings before making requests.';
       const p2 = document.createElement('p');
       p2.style.cssText = 'margin:10px 0 0 0;font-size:0.9em;opacity:0.8;';
-      p2.textContent = 'Click the settings button (⚙️) at the bottom to configure your API key.';
+      p2.textContent = 'Click the settings button (\u2699\ufe0f) at the bottom to configure your API key.';
       errBox.appendChild(heading);
       errBox.appendChild(p1);
       errBox.appendChild(p2);
@@ -387,111 +795,67 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const useOpenRouter = !hasInceptionKey && hasOpenRouterKey;
-    const activeApiUrl = useOpenRouter ? OPENROUTER_API_URL : INCEPTION_API_URL;
-    const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
+    hideWelcome();
+    resultsDiv.querySelectorAll('.regenerate-btn-row').forEach(el => el.remove());
 
-    const model = settings.model || selectedModel;
-    const maxTokens = settings.maxTokens || 32768;
-    const reasoningToggle = document.getElementById('reasoning-toggle');
-    const payload = {
-      model,
-      messages: compactHistory(conversationHistory, maxTokens),
-      max_tokens: maxTokens,
-      ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
-    };
+    const historyIndex = conversationHistory.length;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userRow = createMessageElement('user', marked.parse(userMsg), userMsg, now);
+    userRow.dataset.historyIndex = historyIndex;
+    resultsDiv.appendChild(userRow);
+    postProcess(userRow.querySelector('.message-bubble'));
 
-    if (useOpenRouter) {
-      // OpenRouter supports: Mercury, Mercury Coder
-      const openRouterModelMap = {
-        'mercury': 'inception/mercury',
-        'mercury-coder': 'inception/mercury-coder',
-      };
-      if (!openRouterModelMap[payload.model]) {
-        const warnModal = document.getElementById('warning-modal');
-        document.getElementById('warning-modal-title').textContent = 'Model Not Available on OpenRouter';
-        document.getElementById('warning-modal-message').textContent =
-          `"${model}" is not available on OpenRouter. Switch to Mercury or Mercury Coder, or add an Inception Labs API key in Settings to use Mercury 2.`;
-        warnModal.classList.add('open');
-        return;
-      }
-      payload.model = openRouterModelMap[payload.model];
-    } else {
-      // Inception Labs direct API supports: Mercury (as mercury-edit), Mercury 2
-      const inceptionModelMap = {
-        'mercury': 'mercury-edit',
-        'mercury-2': 'mercury-2',
-      };
-      if (!inceptionModelMap[payload.model]) {
-        const warnModal = document.getElementById('warning-modal');
-        document.getElementById('warning-modal-title').textContent = 'Model Not Available on Inception Labs';
-        document.getElementById('warning-modal-message').textContent =
-          `"${model}" is not available via the Inception Labs API. Switch to Mercury or Mercury 2, or add an OpenRouter API key in Settings to use Mercury Coder.`;
-        warnModal.classList.add('open');
-        return;
-      }
-      payload.model = inceptionModelMap[payload.model];
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    autoGrow();
+
+    conversationHistory.push({ role: 'user', content: userMsg });
+
+    if (window.electronAPI) {
+      try {
+        await window.electronAPI.saveMessage('user', userMsg);
+        setTimeout(loadRecentChats, 100);
+      } catch (err) {}
     }
 
     showTypingIndicator();
-
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${activeApiKey}`
-      };
-      if (useOpenRouter) {
-        headers['HTTP-Referer'] = 'https://github.com/timtully/inception-desktop';
-        headers['X-Title'] = 'Inception Desktop';
-      }
-
-      const res = await fetch(activeApiUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-      hideTypingIndicator();
-      if (!res.ok) {
-        let errMsg = `API error (${res.status})`;
-        try {
-          const errBody = await res.json();
-          if (errBody.error?.message) errMsg = errBody.error.message;
-        } catch (_) { /* no parseable body */ }
-        throw new Error(errMsg);
-      }
-      const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || '[No response]';
-      conversationHistory.push({ role: 'assistant', content: reply });
-      const assistantRow = createMessageElement('assistant', marked.parse(reply));
-      resultsDiv.appendChild(assistantRow);
-      Prism.highlightAll();
-
-      // Save assistant message to database
-      if (window.electronAPI) {
-        try {
-          const result = await window.electronAPI.saveMessage('assistant', reply);
-          if (result) {
-            setTimeout(() => loadRecentChats(), 100);
-          }
-        } catch (err) {
-          console.error('Failed to save assistant message:', err);
-        }
-      }
-
-      // Scroll so the user question remains visible with the reply below it
-      setTimeout(() => {
-        userRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 0);
-    } catch (err) {
-      hideTypingIndicator();
-      const errDiv = document.createElement('div');
-      errDiv.style.color = '#ff6b6b';
-      errDiv.innerHTML = '<b>Error:</b> ';
-      errDiv.appendChild(document.createTextNode(err.message));
-      resultsDiv.appendChild(errDiv);
-      setTimeout(() => {
-        errDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 0);
-    }
+    setTimeout(() => userRow.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+    await runRequest();
   });
+
+  // ── Stop button ──
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      if (currentAbortController) currentAbortController.abort();
+    });
+  }
+
+  // ── Edit button (delegated) ──
+  resultsDiv.addEventListener('click', (e) => {
+    const editBtn = e.target.closest('.edit-btn');
+    if (!editBtn || isGenerating) return;
+    const row = editBtn.closest('.message-row.user');
+    if (!row) return;
+    const rawContent = row.dataset.raw || '';
+    const historyIndex = parseInt(row.dataset.historyIndex, 10);
+    const allRows = [...resultsDiv.querySelectorAll('.message-row, .regenerate-btn-row')];
+    const rowIdx = allRows.indexOf(row);
+    if (rowIdx !== -1) allRows.slice(rowIdx).forEach(r => r.remove());
+    if (!isNaN(historyIndex)) conversationHistory = conversationHistory.slice(0, historyIndex);
+    if (window.electronAPI) window.electronAPI.newChat().catch(() => {});
+    chatInput.value = rawContent;
+    autoGrow();
+    chatInput.focus();
+  });
+
+  // ── Search ──
+  const searchInput = document.getElementById('chat-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const val = searchInput.value.toLowerCase().trim();
+      displayRecentChats(val ? allRecentChats.filter(c =>
+        (c.title || c.first_message || '').toLowerCase().includes(val)
+      ) : allRecentChats);
+    });
+  }
 });

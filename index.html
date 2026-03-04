@@ -26,11 +26,12 @@ SOFTWARE.
 <head>
   <meta charset="UTF-8">
   <title>Inception</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.inceptionlabs.ai; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.inceptionlabs.ai https://openrouter.ai; img-src 'self' data: https://framerusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.inceptionlabs.ai; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://api.inceptionlabs.ai https://openrouter.ai; img-src 'self' data: blob: https://framerusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src blob:;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/themes/prism.min.css" integrity="sha384-rCCjoCPCsizaAAYVoz1Q0CmCTvnctK0JkfCSjx7IIxexTBg+uCKtFYycedUjMyA2" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
   <style>
     /* ── CSS Custom Properties ── */
     :root {
@@ -613,6 +614,29 @@ SOFTWARE.
       z-index: 1;
       padding-top: 48px; /* clear macOS traffic lights / title bar */
     }
+    #conversation-title-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      padding: 0 120px; /* clear traffic lights on the left */
+      z-index: 10;
+    }
+    #conversation-title {
+      font-size: 0.83em;
+      font-weight: 500;
+      color: var(--text-primary);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 420px;
+    }
     .main-content.sidebar-open {
       margin-left: 280px;
     }
@@ -946,6 +970,70 @@ SOFTWARE.
 
     .message-bubble p:first-child { margin-top: 0; }
     .message-bubble p:last-child  { margin-bottom: 0; }
+
+    /* ── Message actions (edit / copy) ── */
+    .message-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      align-self: flex-end;
+      margin-bottom: 6px;
+    }
+    .message-row:hover .message-actions { opacity: 1; }
+    .msg-action-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 4px 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75em;
+      transition: background 0.15s, color 0.15s;
+    }
+    .msg-action-btn:hover { background: rgba(110,231,183,0.12); color: #6ee7b7; }
+    .msg-action-btn svg { fill: currentColor; }
+
+    /* ── Streaming text ── */
+    .streaming-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: inherit;
+      line-height: inherit;
+    }
+
+    /* ── Token usage ── */
+    .token-usage {
+      font-size: 0.72em;
+      color: #6b7085;
+      padding: 4px 18px 0 18px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Regenerate button ── */
+    .regenerate-btn-row {
+      display: flex;
+      justify-content: center;
+      padding: 0 20px 16px;
+    }
+    .regenerate-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-size: 0.82em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .regenerate-btn svg { fill: currentColor; }
+    .regenerate-btn:hover { background: rgba(110,231,183,0.1); color: #6ee7b7; border-color: rgba(110,231,183,0.2); }
 
     /* ── Scrollbar ── */
     #results::-webkit-scrollbar,
@@ -1399,6 +1487,197 @@ SOFTWARE.
       outline: 2px solid var(--accent-green);
       outline-offset: 2px;
     }
+
+    /* ── Streaming cursor ── */
+    @keyframes cursor-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .streaming-text.active::after {
+      content: '▍';
+      display: inline-block;
+      animation: cursor-blink 0.9s step-end infinite;
+      color: var(--accent-green);
+      margin-left: 1px;
+    }
+
+    /* ── Search ── */
+    .search-container { padding: 6px 12px 4px; }
+    .chat-search-input {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.82em;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .chat-search-input:focus { border-color: var(--accent-green); }
+    .chat-search-input::placeholder { color: #6b7085; }
+
+    /* ── Delete conversation button ── */
+    .recent-chat-item { position: relative; }
+    .delete-chat-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #6b7085;
+      cursor: pointer;
+      font-size: 1em;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+    }
+    .recent-chat-item:hover .delete-chat-btn { opacity: 1; }
+    .delete-chat-btn:hover { color: #ef4444; }
+
+    /* ── Context usage bar ── */
+    #context-bar {
+      position: fixed;
+      bottom: 106px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(760px, calc(100% - 48px));
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 9;
+    }
+    #context-bar-fill-bg {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #context-bar-fill {
+      height: 100%;
+      background: var(--accent-green);
+      border-radius: 2px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+    #context-bar-text {
+      font-size: 0.7em;
+      color: #6b7085;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Reasoning block ── */
+    .reasoning-block {
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .reasoning-block summary {
+      padding: 6px 12px;
+      font-size: 0.78em;
+      color: #9ca3af;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.03);
+    }
+    .reasoning-block summary::before { content: '▶'; font-size: 0.7em; transition: transform 0.15s; }
+    .reasoning-block[open] summary::before { transform: rotate(90deg); }
+    .reasoning-block summary::-webkit-details-marker { display: none; }
+    .reasoning-content {
+      padding: 10px 12px;
+      font-size: 0.82em;
+      color: #9ca3af;
+      white-space: pre-wrap;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+
+    /* ── Mermaid diagrams ── */
+    .mermaid-diagram {
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 8px;
+      margin: 8px 0;
+      overflow-x: auto;
+    }
+    .mermaid-diagram svg { max-width: 100%; }
+
+    /* ── Keyboard shortcut hint ── */
+    .kbd-hint {
+      position: fixed;
+      bottom: 10px;
+      right: 16px;
+      font-size: 0.68em;
+      color: #4b5168;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .kbd-hint kbd {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: inherit;
+    }
+
+    /* ── Scroll to bottom button ── */
+    #scroll-to-bottom {
+      position: fixed;
+      bottom: 148px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 6px 14px 6px 10px;
+      font-size: 0.82em;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
+    #scroll-to-bottom.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #scroll-to-bottom:hover {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border-color: var(--border-hover);
+    }
+    #scroll-to-bottom svg { fill: currentColor; flex-shrink: 0; }
+
+    /* ── Message timestamps ── */
+    .msg-time {
+      font-size: 0.7em;
+      color: var(--text-tertiary);
+      opacity: 0;
+      transition: opacity 0.15s;
+      align-self: flex-end;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .message-row:hover .msg-time { opacity: 1; }
   </style>
 </head>
 <body>
@@ -1460,6 +1739,9 @@ SOFTWARE.
         Recents
       </button>
       <div class="sidebar-section-title">Recent Chats</div>
+      <div class="search-container">
+        <input type="text" id="chat-search" placeholder="Search..." class="chat-search-input" autocomplete="off">
+      </div>
       <div class="recents-container" id="recents-list">
         <!-- Recent chats will be loaded here -->
       </div>
@@ -1482,6 +1764,9 @@ SOFTWARE.
   </div>
   
   <div class="main-content" id="main-content">
+    <div id="conversation-title-bar">
+      <span id="conversation-title"></span>
+    </div>
     <div class="welcome-state" id="welcome-state">
       <img src="images/inception.png" alt="Inception Logo" />
       <div class="welcome-title">Inception</div>
@@ -1489,15 +1774,29 @@ SOFTWARE.
       <div class="welcome-prompts" id="welcome-prompts"></div>
     </div>
     <div id="results"></div>
+    <button id="scroll-to-bottom" title="Scroll to bottom">
+      <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      Scroll to bottom
+    </button>
+    <div id="context-bar" style="display:none">
+      <div id="context-bar-fill-bg"><div id="context-bar-fill"></div></div>
+      <span id="context-bar-text"></span>
+    </div>
     <div class="chat-input-area">
       <form id="chat-form" class="chat-input-area-inner" autocomplete="off">
         <textarea id="chat-input" placeholder="Type your message..." autocomplete="off" rows="1"></textarea>
-        <button type="submit" aria-label="Send">
+        <button type="submit" id="submit-btn" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M2 21l21-9-21-9v7l15 2-15 2z"/></svg>
+        </button>
+        <button type="button" id="stop-btn" aria-label="Stop generation" style="display:none">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
         </button>
       </form>
       <div class="bottom-buttons">
         <div class="bottom-buttons-left">
+          <button class="bottom-btn" id="export-btn" title="Export conversation">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </button>
           <button class="bottom-btn" id="clear-chat-btn" title="Clear Chat">
             <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           </button>
@@ -1586,6 +1885,11 @@ SOFTWARE.
           <div class="setting-description">Maximum number of tokens in response (1–50000)</div>
         </div>
         <div class="setting-item">
+          <label class="setting-label" for="system-prompt-input">System Prompt</label>
+          <textarea id="system-prompt-input" class="setting-input" rows="4" placeholder="Optional instructions that set the assistant's behavior for every conversation..." style="resize:vertical;min-height:80px;font-family:inherit;"></textarea>
+          <div class="setting-description">Prepended to every request as a system message (max 2000 chars)</div>
+        </div>
+        <div class="setting-item">
           <label class="setting-label" for="theme-setting">Theme</label>
           <select id="theme-setting" class="setting-input">
             <option value="light">Light</option>
@@ -1617,8 +1921,12 @@ SOFTWARE.
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.30.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha384-Uq05+JLko69eOiPr39ta9bh7kld5PKZoU+fF7g0EXTAriEollhZ+DrN8Q/Oi8J2Q" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" integrity="sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js" crossorigin="anonymous"></script>
   <script src="marked-config.js"></script>
   <script src="renderer.js"></script>
   <script src="app.js"></script>
+  <div class="kbd-hint"><kbd>⌘K</kbd> new chat &nbsp; <kbd>⌘/</kbd> focus &nbsp; <kbd>Esc</kbd> stop</div>
 </body>
 </html>
