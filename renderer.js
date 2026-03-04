@@ -198,6 +198,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // In-memory conversation history for the current session
   let conversationHistory = [];
 
+  // Compact history to fit within context budget.
+  // Keeps the first message (original topic anchor) and trims oldest pairs
+  // until estimated input tokens + maxTokens output budget fits within the
+  // model context window (conservatively assumed to be 128k tokens).
+  const MODEL_CONTEXT_WINDOW = 128000;
+  function compactHistory(history, maxTokens) {
+    if (history.length === 0) return history;
+    const estimateTokens = (msgs) => msgs.reduce((sum, m) => sum + Math.ceil(m.content.length / 4), 0);
+    const budget = MODEL_CONTEXT_WINDOW - maxTokens;
+    let compacted = [...history];
+    while (compacted.length > 1 && estimateTokens(compacted) > budget) {
+      // Always preserve index 0 (first user message); drop the oldest non-first pair
+      const dropFrom = compacted.length > 2 ? 1 : 0;
+      compacted.splice(dropFrom, 2);
+    }
+    return compacted;
+  }
+
   // Load recent chats on startup
   loadRecentChats();
 
@@ -374,11 +392,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
 
     const model = settings.model || selectedModel;
+    const maxTokens = settings.maxTokens || 32768;
     const reasoningToggle = document.getElementById('reasoning-toggle');
     const payload = {
       model,
-      messages: [...conversationHistory],
-      max_tokens: settings.maxTokens || 16384,
+      messages: compactHistory(conversationHistory, maxTokens),
+      max_tokens: maxTokens,
       ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
 
