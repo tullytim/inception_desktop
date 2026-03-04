@@ -1404,6 +1404,34 @@ SOFTWARE.
 <body>
   <div class="titlebar-drag"></div>
   <div class="titlebar-divider"></div>
+
+  <!-- Update notification banner -->
+  <div id="update-banner" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9999; background:var(--bg-elevated); border:1px solid var(--border-default); border-radius:var(--radius-md); padding:14px 18px; box-shadow:var(--shadow-lg); max-width:340px; font-size:0.88em; color:var(--text-primary);">
+    <div id="update-banner-available">
+      <div style="font-weight:600; margin-bottom:6px;">Update available <span id="update-new-version" style="color:var(--accent-green);"></span></div>
+      <div style="color:var(--text-secondary); margin-bottom:12px;">A new version of Inception is ready to download.</div>
+      <div style="display:flex; gap:8px;">
+        <button id="update-download-btn" style="flex:1; padding:8px 12px; background:linear-gradient(135deg,#6ee7b7 0%,#3b82f6 100%); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:500;">Download</button>
+        <button id="update-dismiss-btn" style="padding:8px 12px; background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); border-radius:8px; cursor:pointer;">Later</button>
+      </div>
+    </div>
+    <div id="update-banner-progress" style="display:none;">
+      <div style="font-weight:600; margin-bottom:8px;">Downloading update...</div>
+      <div style="background:var(--bg-surface); border-radius:4px; height:6px; overflow:hidden; margin-bottom:8px;">
+        <div id="update-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#6ee7b7,#3b82f6); transition:width 0.3s;"></div>
+      </div>
+      <div id="update-progress-text" style="color:var(--text-secondary); text-align:center;">0%</div>
+    </div>
+    <div id="update-banner-ready" style="display:none;">
+      <div style="font-weight:600; margin-bottom:6px;">Update ready <span id="update-ready-version" style="color:var(--accent-green);"></span></div>
+      <div style="color:var(--text-secondary); margin-bottom:12px;">Restart Inception to apply the update.</div>
+      <div style="display:flex; gap:8px;">
+        <button id="update-install-btn" style="flex:1; padding:8px 12px; background:linear-gradient(135deg,#6ee7b7 0%,#3b82f6 100%); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:500;">Restart & Install</button>
+        <button id="update-later-btn" style="padding:8px 12px; background:transparent; color:var(--text-secondary); border:1px solid var(--border-default); border-radius:8px; cursor:pointer;">Later</button>
+      </div>
+    </div>
+  </div>
+
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
   <div class="sidebar" id="sidebar">
@@ -1443,7 +1471,14 @@ SOFTWARE.
         Settings
       </button>
     </div>
-    <div style="padding: 12px 20px 20px 20px; color: #4b5563; font-size: 0.75em;" id="sidebar-version"></div>
+    <div style="padding: 12px 20px 20px 20px; display:flex; flex-direction:column; gap:8px;">
+      <span style="color:#6b7085; font-size:0.75em;" id="sidebar-version"></span>
+      <button id="check-update-btn" title="Check for updates" style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:8px; color:#a0a4b8; cursor:pointer; font-size:0.8em; padding:7px 12px; width:100%; transition:background 0.15s,color 0.15s;" onmouseover="this.style.background='rgba(110,231,183,0.08)';this.style.color='#6ee7b7';this.style.borderColor='rgba(110,231,183,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#a0a4b8';this.style.borderColor='rgba(255,255,255,0.08)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        Check for updates
+      </button>
+      <span id="check-update-status" style="color:#6ee7b7; font-size:0.78em; display:none; text-align:center;"></span>
+    </div>
   </div>
   
   <div class="main-content" id="main-content">

@@ -26,6 +26,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, dialog } = require('electron');
 const path = require('path');
 const os = require('os');
 const Database = require('better-sqlite3');
+const { autoUpdater } = require('electron-updater');
 
 // Database setup
 let db;
@@ -258,10 +259,74 @@ function createTray() {
  }
 }
 
+// Auto-updater configuration
+autoUpdater.autoDownload = false;
+autoUpdater.allowDowngrade = false;
+autoUpdater.allowPrerelease = false;
+
+autoUpdater.on('update-available', (info) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('update:available', { version: info.version });
+  }
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('update:download-progress', {
+      percent: Math.round(progress.percent),
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  if (mainWindow) {
+    mainWindow.webContents.send('update:downloaded', { version: info.version });
+  }
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Auto-updater error:', err);
+  if (mainWindow) {
+    mainWindow.webContents.send('update:error', { message: err.message });
+  }
+});
+
+ipcMain.handle('update:check', async () => {
+  try {
+    return await autoUpdater.checkForUpdates();
+  } catch (err) {
+    console.error('Update check failed:', err);
+    return null;
+  }
+});
+
+ipcMain.handle('update:download', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return true;
+  } catch (err) {
+    console.error('Update download failed:', err);
+    return false;
+  }
+});
+
+ipcMain.handle('update:install', () => {
+  autoUpdater.quitAndInstall(false, true);
+});
+
 // App event handlers
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  // Check for updates 5 seconds after startup
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(err => {
+      console.error('Initial update check failed:', err);
+    });
+  }, 5000);
 });
 
 app.on('window-all-closed', () => {
