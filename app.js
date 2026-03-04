@@ -1,9 +1,5 @@
 const MODEL_MAX_TOKENS = {
-  'mercury': 16384,
   'mercury-2': 16384,
-  'mercury-coder': 16384,
-  'mercury-coder-small': 16384,
-  'mercury-coder-large': 16384,
 };
 function getMaxTokensForModel(model) {
   return MODEL_MAX_TOKENS[model] || 16384;

@@ -663,7 +663,7 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
 
-const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-coder', 'mercury-coder-small', 'mercury-coder-large'];
+const ALLOWED_MODELS = ['mercury-2'];
 const ALLOWED_THEMES = ['dark', 'light', 'auto'];
 const MAX_TOKENS_LIMIT = 16384;
 

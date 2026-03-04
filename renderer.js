@@ -385,16 +385,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // When using OpenRouter, map local model names to OpenRouter model IDs
     if (useOpenRouter && !payload.model.includes('/')) {
       const openRouterModelMap = {
-        'mercury': 'inception/mercury',
-        'mercury-coder': 'inception/mercury-coder',
-        'mercury-coder-small': 'inception/mercury-coder-small-beta',
-        'mercury-coder-large': 'inception/mercury-coder',
+        'mercury-2': 'inception/mercury-2',
       };
       if (!openRouterModelMap[payload.model]) {
         const warnModal = document.getElementById('warning-modal');
         document.getElementById('warning-modal-title').textContent = 'Model Not Available';
         document.getElementById('warning-modal-message').textContent =
-          `"${model}" is not available on OpenRouter. Please switch to a supported model (Mercury, Mercury Coder, Mercury Coder Small) or add an Inception Labs API key in Settings.`;
+          `"${model}" is not available on OpenRouter. Please add an Inception Labs API key in Settings.`;
         warnModal.classList.add('open');
         return;
       }
