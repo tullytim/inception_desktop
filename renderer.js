@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let settings = {
       apiKey: '',
       model: selectedModel || 'mercury-2',
-      maxTokens: 16384
+      maxTokens: 32000
     };
 
     if (window.electronAPI) {

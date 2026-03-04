@@ -1,8 +1,8 @@
 const MODEL_MAX_TOKENS = {
-  'mercury-2': 16384,
+  'mercury-2': 50000,
 };
 function getMaxTokensForModel(model) {
-  return MODEL_MAX_TOKENS[model] || 16384;
+  return MODEL_MAX_TOKENS[model] || 50000;
 }
 function updateReasoningToggleVisibility(model) {
   const wrap = document.getElementById('reasoning-toggle-wrap');

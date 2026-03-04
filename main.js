@@ -665,7 +665,7 @@ ipcMain.handle('app:getVersion', () => {
 
 const ALLOWED_MODELS = ['mercury-2'];
 const ALLOWED_THEMES = ['dark', 'light', 'auto'];
-const MAX_TOKENS_LIMIT = 16384;
+const MAX_TOKENS_LIMIT = 50000;
 
 // Settings file handlers
 ipcMain.handle('settings:save', async (event, settings) => {
@@ -719,7 +719,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-2', maxTokens: 16384, theme: 'dark' };
+  const defaults = { model: 'mercury-2', maxTokens: 32000, theme: 'dark' };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
