@@ -22,7 +22,8 @@ A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercur
 
 | Model | Description |
 |---|---|
-| Mercury 2 | General-purpose model |
+| Mercury | General-purpose model |
+| Mercury 2 | Latest general-purpose model (default) |
 
 ## Getting Started
 

@@ -385,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // When using OpenRouter, map local model names to OpenRouter model IDs
     if (useOpenRouter && !payload.model.includes('/')) {
       const openRouterModelMap = {
+        'mercury': 'inception/mercury',
         'mercury-2': 'inception/mercury-2',
       };
       if (!openRouterModelMap[payload.model]) {
