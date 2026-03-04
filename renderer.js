@@ -382,21 +382,36 @@ document.addEventListener('DOMContentLoaded', () => {
       ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
 
-    // When using OpenRouter, map local model names to OpenRouter model IDs
-    if (useOpenRouter && !payload.model.includes('/')) {
+    if (useOpenRouter) {
+      // OpenRouter supports: Mercury, Mercury Coder
       const openRouterModelMap = {
         'mercury': 'inception/mercury',
-        'mercury-2': 'inception/mercury-2',
+        'mercury-coder': 'inception/mercury-coder',
       };
       if (!openRouterModelMap[payload.model]) {
         const warnModal = document.getElementById('warning-modal');
-        document.getElementById('warning-modal-title').textContent = 'Model Not Available';
+        document.getElementById('warning-modal-title').textContent = 'Model Not Available on OpenRouter';
         document.getElementById('warning-modal-message').textContent =
-          `"${model}" is not available on OpenRouter. Please add an Inception Labs API key in Settings.`;
+          `"${model}" is not available on OpenRouter. Switch to Mercury or Mercury Coder, or add an Inception Labs API key in Settings to use Mercury 2.`;
         warnModal.classList.add('open');
         return;
       }
       payload.model = openRouterModelMap[payload.model];
+    } else {
+      // Inception Labs direct API supports: Mercury (as mercury-edit), Mercury 2
+      const inceptionModelMap = {
+        'mercury': 'mercury-edit',
+        'mercury-2': 'mercury-2',
+      };
+      if (!inceptionModelMap[payload.model]) {
+        const warnModal = document.getElementById('warning-modal');
+        document.getElementById('warning-modal-title').textContent = 'Model Not Available on Inception Labs';
+        document.getElementById('warning-modal-message').textContent =
+          `"${model}" is not available via the Inception Labs API. Switch to Mercury or Mercury 2, or add an OpenRouter API key in Settings to use Mercury Coder.`;
+        warnModal.classList.add('open');
+        return;
+      }
+      payload.model = inceptionModelMap[payload.model];
     }
 
     showTypingIndicator();
