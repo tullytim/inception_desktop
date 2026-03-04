@@ -296,25 +296,84 @@ autoUpdater.on('error', (err) => {
 
 ipcMain.handle('update:check', async () => {
   try {
-    return await autoUpdater.checkForUpdates();
+    const currentVersion = app.getVersion();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let release;
+    try {
+      const response = await fetch('https://api.github.com/repos/tullytim/inception_desktop/releases/latest', {
+        headers: { 'User-Agent': 'inception-desktop' },
+        signal: controller.signal
+      });
+      release = await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+    if (!latestVersion) return null;
+    const parseVer = (v) => v.split('.').map(Number);
+    const [la, lb, lc] = parseVer(latestVersion);
+    const [ca, cb, cc] = parseVer(currentVersion);
+    const hasUpdate = la > ca || (la === ca && lb > cb) || (la === ca && lb === cb && lc > cc);
+    // Find the macOS DMG asset download URL
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    const dmgAsset = assets.find(a => a.name && a.name.endsWith('.dmg'));
+    const downloadUrl = dmgAsset ? dmgAsset.browser_download_url : null;
+    return hasUpdate ? { updateInfo: { version: latestVersion, downloadUrl }, currentVersion } : null;
   } catch (err) {
     console.error('Update check failed:', err);
     return null;
   }
 });
 
-ipcMain.handle('update:download', async () => {
+const https = require('https');
+const fsSync = require('fs');
+
+function httpsGetFollowRedirects(url, redirectsLeft = 5) {
+  return new Promise((resolve, reject) => {
+    if (redirectsLeft === 0) return reject(new Error('Too many redirects'));
+    https.get(url, { headers: { 'User-Agent': 'inception-desktop' } }, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        resolve(httpsGetFollowRedirects(res.headers.location, redirectsLeft - 1));
+      } else {
+        resolve(res);
+      }
+    }).on('error', reject);
+  });
+}
+
+ipcMain.handle('update:download', async (_event, downloadUrl) => {
+  if (typeof downloadUrl !== 'string' || !downloadUrl.startsWith('https://')) return false;
   try {
-    await autoUpdater.downloadUpdate();
+    const { shell } = require('electron');
+    const tmpPath = path.join(app.getPath('temp'), 'inception-update.dmg');
+    const res = await httpsGetFollowRedirects(downloadUrl);
+    const total = parseInt(res.headers['content-length'], 10) || 0;
+    let received = 0;
+    const writeStream = fsSync.createWriteStream(tmpPath);
+    res.on('data', (chunk) => {
+      received += chunk.length;
+      if (mainWindow && total > 0) {
+        mainWindow.webContents.send('update:download-progress', {
+          percent: Math.round((received / total) * 100)
+        });
+      }
+    });
+    res.pipe(writeStream);
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+      res.on('error', reject);
+    });
+    if (mainWindow) mainWindow.webContents.send('update:downloaded', {});
+    // Open the DMG so the user can drag to Applications
+    await shell.openPath(tmpPath);
     return true;
   } catch (err) {
     console.error('Update download failed:', err);
+    if (mainWindow) mainWindow.webContents.send('update:error', { message: err.message });
     return false;
   }
-});
-
-ipcMain.handle('update:install', () => {
-  autoUpdater.quitAndInstall(false, true);
 });
 
 // App event handlers
