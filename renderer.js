@@ -195,17 +195,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const INCEPTION_API_URL = 'https://api.inceptionlabs.ai/v1/chat/completions';
   const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+  // In-memory conversation history for the current session
+  let conversationHistory = [];
+
   // Load recent chats on startup
   loadRecentChats();
 
   // Listen for refresh events
   document.addEventListener('refreshRecentChats', loadRecentChats);
+  document.addEventListener('clearConversationHistory', () => { conversationHistory = []; });
 
   // Listen for menu events from main process
   if (window.electronAPI && window.electronAPI.onMenuCommand) {
     window.electronAPI.onMenuCommand('menu:new-chat', () => {
       resultsDiv.innerHTML = '';
       chatInput.value = '';
+      conversationHistory = [];
       if (welcomeState) welcomeState.style.display = '';
       if (window.electronAPI) {
         window.electronAPI.newChat();
@@ -271,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       hideWelcome();
       resultsDiv.innerHTML = '';
+      conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
 
       let firstRow = null;
       messages.forEach(message => {
@@ -303,6 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.value = '';
     chatInput.style.height = 'auto';
     autoGrow();
+
+    // Add user message to in-memory history
+    conversationHistory.push({ role: 'user', content: userMsg });
 
     // Save user message to database
     if (window.electronAPI) {
@@ -368,9 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reasoningToggle = document.getElementById('reasoning-toggle');
     const payload = {
       model,
-      messages: [
-        { role: 'user', content: userMsg }
-      ],
+      messages: [...conversationHistory],
       max_tokens: settings.maxTokens || 16384,
       ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
@@ -422,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '[No response]';
+      conversationHistory.push({ role: 'assistant', content: reply });
       const assistantRow = createMessageElement('assistant', marked.parse(reply));
       resultsDiv.appendChild(assistantRow);
       Prism.highlightAll();
