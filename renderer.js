@@ -373,23 +373,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const useOpenRouter = !hasInceptionKey && hasOpenRouterKey;
     const activeApiUrl = useOpenRouter ? OPENROUTER_API_URL : INCEPTION_API_URL;
     const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
-    const model = settings.model || modelSelect.value || 'mercury-2';
+    const model = (settings.model === 'mercury' ? 'mercury-2' : settings.model) || modelSelect.value || 'mercury-2';
     const maxTokens = settings.maxTokens || 32768;
 
     let resolvedModel;
     if (useOpenRouter) {
-      const map = { 'mercury': 'inception/mercury', 'mercury-coder': 'inception/mercury-coder' };
+      const map = { 'mercury-2': 'inception/mercury-2' };
       if (!map[model]) {
         showWarning('Model Not Available on OpenRouter',
-          `"${model}" is not available on OpenRouter. Switch to Mercury or Mercury Coder, or add an Inception Labs API key in Settings to use Mercury 2.`);
+          `"${model}" is not available on OpenRouter. Switch to Mercury 2.`);
         return;
       }
       resolvedModel = map[model];
     } else {
-      const map = { 'mercury': 'mercury-edit', 'mercury-2': 'mercury-2' };
+      const map = { 'mercury-2': 'mercury-2' };
       if (!map[model]) {
-        showWarning('Model Not Available on Inception Labs',
-          `"${model}" is not available via the Inception Labs API. Switch to Mercury or Mercury 2, or add an OpenRouter API key in Settings to use Mercury Coder.`);
+        showWarning('Model Not Available',
+          `"${model}" is not available. Switch to Mercury 2.`);
         return;
       }
       resolvedModel = map[model];
@@ -466,43 +466,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!res.ok) {
         let errMsg = `API error (${res.status})`;
-        try { const b = await res.json(); if (b.error?.message) errMsg = b.error.message; } catch {}
+        try { const b = await res.json(); if (b.error?.message) errMsg = typeof b.error.message === 'string' ? b.error.message : JSON.stringify(b.error); } catch {}
         throw new Error(errMsg);
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream')) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (raw === '[DONE]') continue;
-          try {
-            const chunk = JSON.parse(raw);
-            // Reasoning tokens
-            const reasoning = chunk.choices?.[0]?.delta?.reasoning;
-            if (reasoning) {
-              fullReasoning += reasoning;
-              reasoningDetails.style.display = '';
-              reasoningContent.textContent = fullReasoning;
-            }
-            // Content tokens
-            const token = chunk.choices?.[0]?.delta?.content;
-            if (token) {
-              fullReply += token;
-              streamingEl.textContent = fullReply;
-              assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-            }
-            if (chunk.usage) usage = chunk.usage;
-          } catch {}
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(raw);
+              const reasoning = chunk.choices?.[0]?.delta?.reasoning;
+              if (reasoning) {
+                fullReasoning += reasoning;
+                reasoningDetails.style.display = '';
+                reasoningContent.textContent = fullReasoning;
+              }
+              const token = chunk.choices?.[0]?.delta?.content;
+              if (token) {
+                fullReply += token;
+                streamingEl.textContent = fullReply;
+                assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+              }
+              if (chunk.usage) usage = chunk.usage;
+            } catch {}
+          }
         }
+      } else {
+        const b = await res.json();
+        fullReply = b.choices?.[0]?.message?.content || '';
+        if (fullReply) streamingEl.textContent = fullReply;
+        if (b.usage) usage = b.usage;
       }
     } catch (err) {
       if (err.name !== 'AbortError') {

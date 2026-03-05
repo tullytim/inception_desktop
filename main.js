@@ -684,7 +684,8 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
 
-const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-coder'];
+const ALLOWED_MODELS = ['mercury', 'mercury-2'];
+const DEFAULT_SYSTEM_PROMPT = `You are a helpful, accurate, and concise AI assistant. Answer questions clearly and directly. Acknowledge uncertainty when you're unsure about something.`;
 const ALLOWED_THEMES = ['dark', 'light', 'auto'];
 const MAX_TOKENS_LIMIT = 50000;
 
@@ -744,7 +745,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark', systemPrompt: '' };
+  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark', systemPrompt: DEFAULT_SYSTEM_PROMPT };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
@@ -759,7 +760,7 @@ ipcMain.handle('settings:load', async () => {
       if (Number.isInteger(t) && t >= 1 && t <= MAX_TOKENS_LIMIT) otherSettings.maxTokens = t;
     }
     if (parsed.theme && ALLOWED_THEMES.includes(parsed.theme)) otherSettings.theme = parsed.theme;
-    if (typeof parsed.systemPrompt === 'string') otherSettings.systemPrompt = parsed.systemPrompt.substring(0, 2000);
+    if (typeof parsed.systemPrompt === 'string') otherSettings.systemPrompt = parsed.systemPrompt.substring(0, 2000) || DEFAULT_SYSTEM_PROMPT;
   } catch (e) {
     // use defaults
   }
