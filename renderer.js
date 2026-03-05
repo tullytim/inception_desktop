@@ -118,16 +118,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'message-row assistant';
     row.id = 'typing-indicator-row';
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.textContent = 'I';
+    const label = document.createElement('div');
+    label.className = 'message-label';
+    label.textContent = 'Inception';
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     const dots = document.createElement('div');
     dots.className = 'typing-indicator';
     dots.innerHTML = '<span></span><span></span><span></span>';
     bubble.appendChild(dots);
-    row.appendChild(avatar);
+    row.appendChild(label);
     row.appendChild(bubble);
     resultsDiv.appendChild(row);
     row.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -211,9 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = `message-row ${safeRole}`;
     if (rawContent !== undefined) row.dataset.raw = rawContent;
 
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.textContent = safeRole === 'user' ? 'Y' : 'I';
+    const label = document.createElement('div');
+    label.className = 'message-label';
+    label.textContent = safeRole === 'user' ? 'You' : 'Inception';
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
       actions.appendChild(editBtn);
     }
 
-    row.appendChild(avatar);
+    row.appendChild(label);
     row.appendChild(bubble);
     row.appendChild(actions);
 
@@ -419,9 +419,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Build assistant row
     const assistantRow = document.createElement('div');
     assistantRow.className = 'message-row assistant';
-    const assistantAvatar = document.createElement('div');
-    assistantAvatar.className = 'message-avatar';
-    assistantAvatar.textContent = 'I';
+    const assistantLabel = document.createElement('div');
+    assistantLabel.className = 'message-label';
+    assistantLabel.textContent = 'Inception';
     const assistantBubble = document.createElement('div');
     assistantBubble.className = 'message-bubble';
 
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     streamingEl.className = 'streaming-text active';
     assistantBubble.appendChild(streamingEl);
 
-    assistantRow.appendChild(assistantAvatar);
+    assistantRow.appendChild(assistantLabel);
     assistantRow.appendChild(assistantBubble);
 
     hideTypingIndicator();
