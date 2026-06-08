@@ -6,6 +6,7 @@
   "license": "MIT",
   "author": "Tim Tully <tim@menlovc.com>",
   "scripts": {
+    "test": "node --test",
     "start": "electron .",
     "dev": "NODE_ENV=development electron .",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
