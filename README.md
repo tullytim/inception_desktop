@@ -7,8 +7,11 @@ A fast, friendly desktop chat app for [Inception Labs](https://inceptionlabs.ai)
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/chat-light.png" alt="A chat with a syntax-highlighted code block in light mode" width="420">
-  <img src="docs/screenshots/chat-dark.png" alt="The same chat in dark mode" width="420">
+  <img src="docs/screenshots/chat-light.png" alt="A chat with a syntax-highlighted code block in light mode" width="860">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/chat-dark.png" alt="The same chat in dark mode" width="860">
 </p>
 
 ## Features
