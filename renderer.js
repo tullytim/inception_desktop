@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showWelcome() {
     if (welcomeState) welcomeState.style.display = '';
     mainContent.classList.add('is-empty');
+    document.getElementById('scroll-to-bottom')?.classList.remove('visible');
     renderWelcome();
   }
 

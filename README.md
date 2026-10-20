@@ -1,22 +1,34 @@
 # Inception
 
-A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercury models, built with Electron.
+A fast, friendly desktop chat app for [Inception Labs](https://inceptionlabs.ai) Mercury models, built with Electron.
 
-![Inception Chat](images/inception.png)
-![Inception Chat](images/inception_example1.png)
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="Inception welcome screen with a sidebar of recent chats" width="860">
+</p>
 
-![Inception Chat](images/inception_ss.png)
+<p align="center">
+  <img src="docs/screenshots/chat-light.png" alt="A chat with a syntax-highlighted code block in light mode" width="420">
+  <img src="docs/screenshots/chat-dark.png" alt="The same chat in dark mode" width="420">
+</p>
 
 ## Features
 
-- Chat with Mercury AI models via the Inception Labs API or OpenRouter
-- Persistent conversation history stored locally with SQLite
-- Recent chats sidebar for quick access to past conversations
-- Reasoning mode toggle for Mercury 2
-- Dark and light themes
-- System tray support (macOS) — minimize to tray and stay running in the background
-- Auto-update — checks GitHub Releases on startup and prompts to install new versions
-- Syntax highlighting for code blocks
+**Chat**
+- Chat with Mercury models via the Inception Labs API or OpenRouter
+- Replies stream in as formatted markdown, with syntax-highlighted code, math (KaTeX) and Mermaid diagrams
+- Long code blocks collapse by default, with one-click copy
+- Optional faster answers for models that support reasoning
+- Edit a message, try again, or stop a reply mid-stream
+
+**Your conversations**
+- Persistent history stored locally with SQLite, grouped by date
+- Search and pin chats from the sidebar, and export any chat as Markdown
+
+**Made for the Mac (and everywhere else)**
+- Native frosted-glass sidebar and window controls on macOS
+- Light, dark, or match-system themes, with five accent colors
+- System tray support (macOS) to stay running in the background
+- Auto-update from GitHub Releases
 - Cross-platform: macOS, Windows, Linux
 
 ## Models
@@ -55,14 +67,14 @@ npm run dev
 
 ### Configuration
 
-On first launch, open Settings (⚙️) and enter your API key. Available providers:
+On first launch, paste your API key into the welcome screen. You can change it later in Settings (`Cmd/Ctrl+,`). Available providers:
 
 | Provider | Setting |
 |---|---|
 | Inception Labs | API key from [platform.inceptionlabs.ai](https://platform.inceptionlabs.ai/dashboard/api-keys) |
 | OpenRouter | API key from [openrouter.ai](https://openrouter.ai) |
 
-Settings (theme, model, max tokens) are saved to the Electron userData directory.
+Settings (appearance, accent color, model, reply length, custom instructions) are saved to the Electron userData directory. API keys are stored in `~/.inception/config.json`.
 
 ## Building
 
@@ -87,6 +99,11 @@ Build output goes to `dist/`. Linux builds produce AppImage, .deb, and .rpm pack
 | Shortcut | Action |
 |---|---|
 | `Cmd/Ctrl+N` | New chat |
+| `Cmd/Ctrl+K` | Search chats |
+| `Cmd/Ctrl+,` | Open Settings |
+| `Cmd/Ctrl+B` | Show or hide the sidebar |
+| `Cmd/Ctrl+/` | Focus the message box |
+| `Esc` | Stop generating |
 | `Cmd+Q` / `Ctrl+Q` | Quit |
 
 ## License
