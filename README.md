@@ -29,7 +29,7 @@ A fast, friendly desktop chat app for [Inception Labs](https://inceptionlabs.ai)
 
 **Made for the Mac (and everywhere else)**
 - Native frosted-glass sidebar and window controls on macOS
-- Light, dark, or match-system themes, with five accent colors
+- Light, dark, or match-system themes
 - System tray support (macOS) to stay running in the background
 - Auto-update from GitHub Releases
 - Cross-platform: macOS, Windows, Linux
@@ -77,7 +77,7 @@ On first launch, paste your API key into the welcome screen. You can change it l
 | Inception Labs | API key from [platform.inceptionlabs.ai](https://platform.inceptionlabs.ai/dashboard/api-keys) |
 | OpenRouter | API key from [openrouter.ai](https://openrouter.ai) |
 
-Settings (appearance, accent color, model, reply length, custom instructions) are saved to the Electron userData directory. API keys are stored in `~/.inception/config.json`.
+Settings (appearance, model, reply length, custom instructions) are saved to the Electron userData directory. API keys are stored in `~/.inception/config.json`.
 
 ## Building
 

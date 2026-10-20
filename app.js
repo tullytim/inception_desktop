@@ -27,28 +27,6 @@ if (window.electronAPI && window.electronAPI.platform) {
   document.body.classList.add(`platform-${window.electronAPI.platform}`);
 }
 
-// Accent colour
-let currentAccent = 'indigo';
-function applyAccent(accent) {
-  currentAccent = accent || 'indigo';
-  document.body.dataset.accent = currentAccent;
-  document.querySelectorAll('#accent-swatches .swatch').forEach(sw => {
-    sw.setAttribute('aria-checked', String(sw.dataset.value === currentAccent));
-  });
-}
-document.getElementById('accent-swatches').addEventListener('click', async (e) => {
-  const sw = e.target.closest('.swatch');
-  if (!sw) return;
-  applyAccent(sw.dataset.value);
-  if (window.electronAPI) {
-    try {
-      const current = await window.electronAPI.loadSettings() || {};
-      current.accent = currentAccent;
-      await window.electronAPI.saveSettings(current);
-    } catch (err) { console.error('Error saving accent:', err); }
-  }
-});
-
 // Sidebar: open by default on wide windows, remembers the user's choice
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -206,7 +184,6 @@ async function closeModal() {
         model: document.getElementById('model-setting').value,
         maxTokens: parseInt(document.getElementById('max-tokens-input').value) || getMaxTokensForModel(document.getElementById('model-setting').value),
         theme: document.getElementById('theme-setting').value,
-        accent: currentAccent,
         systemPrompt: document.getElementById('system-prompt-input').value
       };
       await window.electronAPI.saveSettings(settings);
@@ -468,7 +445,6 @@ async function loadInitialTheme() {
       const settings = await window.electronAPI.loadSettings();
       const savedTheme = settings?.theme || 'auto';
       applyTheme(savedTheme);
-      applyAccent(settings?.accent);
     } catch (error) {
       console.error('Error loading initial theme:', error);
       applyTheme('auto');
