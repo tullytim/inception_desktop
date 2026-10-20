@@ -693,6 +693,7 @@ ipcMain.handle('app:getVersion', () => {
 const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-3'];
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful, accurate, and concise AI assistant. Answer questions clearly and directly. Acknowledge uncertainty when you're unsure about something.`;
 const ALLOWED_THEMES = ['dark', 'light', 'auto'];
+const ALLOWED_ACCENTS = ['indigo', 'teal', 'orange', 'pink', 'green'];
 const MAX_TOKENS_LIMIT = 50000;
 
 // Keep native chrome (vibrancy, scrollbars, menus) in step with the in-app theme
@@ -742,6 +743,10 @@ ipcMain.handle('settings:save', async (event, settings) => {
       safeSettings.theme = settings.theme;
       applyNativeTheme(settings.theme);
     }
+    if (settings.accent !== undefined) {
+      if (!ALLOWED_ACCENTS.includes(settings.accent)) return false;
+      safeSettings.accent = settings.accent;
+    }
     if (settings.systemPrompt !== undefined) {
       if (typeof settings.systemPrompt !== 'string') return false;
       safeSettings.systemPrompt = settings.systemPrompt.substring(0, 2000);
@@ -757,7 +762,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-3', maxTokens: 32768, theme: 'auto', systemPrompt: DEFAULT_SYSTEM_PROMPT };
+  const defaults = { model: 'mercury-3', maxTokens: 32768, theme: 'auto', accent: 'indigo', systemPrompt: DEFAULT_SYSTEM_PROMPT };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
@@ -773,6 +778,7 @@ ipcMain.handle('settings:load', async () => {
     }
     if (parsed.theme && ALLOWED_THEMES.includes(parsed.theme)) otherSettings.theme = parsed.theme;
     applyNativeTheme(otherSettings.theme);
+    if (parsed.accent && ALLOWED_ACCENTS.includes(parsed.accent)) otherSettings.accent = parsed.accent;
     if (typeof parsed.systemPrompt === 'string') otherSettings.systemPrompt = parsed.systemPrompt.substring(0, 2000) || DEFAULT_SYSTEM_PROMPT;
   } catch (e) {
     // use defaults

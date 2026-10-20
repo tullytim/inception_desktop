@@ -134,16 +134,44 @@ document.addEventListener('DOMContentLoaded', () => {
     chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
   });
 
+  // Update `target` to match `html`, touching only blocks that changed so finished
+  // paragraphs don't re-render (or re-animate) while the reply streams in.
+  // outerHTML without the transient entrance class, so unchanged blocks compare equal
+  function blockSignature(el) {
+    const clone = el.cloneNode(true);
+    clone.classList.remove('fade-in');
+    if (!clone.getAttribute('class')) clone.removeAttribute('class');
+    return clone.outerHTML;
+  }
+
+  function patchBlocks(target, html) {
+    const next = document.createElement('div');
+    next.innerHTML = html;
+    const incoming = Array.from(next.children);
+    const existing = Array.from(target.children);
+    incoming.forEach((node, i) => {
+      const current = existing[i];
+      if (!current) {
+        node.classList.add('fade-in');
+        node.addEventListener('animationend', () => node.classList.remove('fade-in'), { once: true });
+        target.appendChild(node);
+      } else if (blockSignature(current) !== node.outerHTML) {
+        current.replaceWith(node);
+      }
+    });
+    for (let i = existing.length - 1; i >= incoming.length; i--) existing[i].remove();
+  }
+
   function showTypingIndicator() {
     const row = document.createElement('div');
     row.className = 'message-row assistant';
     row.id = 'typing-indicator-row';
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    const dots = document.createElement('div');
-    dots.className = 'typing-indicator';
-    dots.innerHTML = '<span></span><span></span><span></span>';
-    bubble.appendChild(dots);
+    const thinking = document.createElement('div');
+    thinking.className = 'thinking-text';
+    thinking.textContent = 'Thinking\u2026';
+    bubble.appendChild(thinking);
     row.appendChild(bubble);
     resultsDiv.appendChild(row);
     row.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -170,13 +198,29 @@ document.addEventListener('DOMContentLoaded', () => {
       copyBtn.textContent = 'Copy';
       copyBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(code.textContent).then(() => {
-          copyBtn.textContent = 'Copied!';
-          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+          copyBtn.classList.add('done');
+          copyBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Copied';
+          setTimeout(() => { copyBtn.classList.remove('done'); copyBtn.textContent = 'Copy'; }, 1500);
         });
       });
       header.appendChild(langLabel);
       header.appendChild(copyBtn);
       pre.insertBefore(header, pre.firstChild);
+
+      // Long blocks start collapsed so one reply doesn't swamp the conversation
+      const lineCount = code.textContent.split('\n').length;
+      if (lineCount > 24) {
+        pre.classList.add('collapsed');
+        const expand = document.createElement('button');
+        expand.type = 'button';
+        expand.className = 'code-expand-btn';
+        expand.textContent = `Show all ${lineCount} lines`;
+        expand.addEventListener('click', () => {
+          const collapsed = pre.classList.toggle('collapsed');
+          expand.textContent = collapsed ? `Show all ${lineCount} lines` : 'Show less';
+        });
+        pre.appendChild(expand);
+      }
     });
   }
 
@@ -290,6 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentAbortController = null;
   let allRecentChats = [];
   let activeConversationId = null;
+
+  // Pinned chats live in this browser profile only; they are a view preference
+  function getPinned() {
+    try { return new Set(JSON.parse(localStorage.getItem('pinnedChats') || '[]')); } catch (e) { return new Set(); }
+  }
+  function setPinned(set) {
+    try { localStorage.setItem('pinnedChats', JSON.stringify([...set])); } catch (e) {}
+  }
 
   function setGenerating(val) {
     isGenerating = val;
@@ -530,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQueued = true;
       requestAnimationFrame(() => {
         renderQueued = false;
-        streamingEl.innerHTML = sanitize(marked.parse(fullReply));
+        patchBlocks(streamingEl, sanitize(marked.parse(fullReply)));
         assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
       });
     }
@@ -786,13 +838,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chats || chats.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'recents-empty';
-      empty.textContent = document.getElementById('chat-search')?.value ? 'No matching chats' : 'Your chats will show up here';
+      const searching = !!document.getElementById('chat-search')?.value;
+      empty.innerHTML = searching
+        ? '<svg viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></svg><span></span>'
+        : '<svg viewBox="0 0 64 64"><path class="accent-fill" d="M12 14h40a4 4 0 014 4v22a4 4 0 01-4 4H30l-10 9v-9h-8a4 4 0 01-4-4V18a4 4 0 014-4z"/><path d="M22 26h20M22 34h12"/></svg><span></span>';
+      empty.querySelector('span').textContent = searching ? 'No matching chats' : 'Your chats will show up here';
       recentsContainer.appendChild(empty);
       return;
     }
+    const pinned = getPinned();
+    // Pinned chats float to the top under their own heading
+    chats = [...chats.filter(c => pinned.has(c.id)), ...chats.filter(c => !pinned.has(c.id))];
     let lastGroup = null;
     chats.forEach(chat => {
-      const group = dateGroup(parseDbDate(chat.updated_at));
+      const isPinned = pinned.has(chat.id);
+      const group = isPinned ? 'Pinned' : dateGroup(parseDbDate(chat.updated_at));
       if (group !== lastGroup) {
         const heading = document.createElement('div');
         heading.className = 'recents-group-title';
@@ -815,6 +875,23 @@ document.addEventListener('DOMContentLoaded', () => {
       titleEl.className = 'recent-chat-title';
       titleEl.textContent = title;
 
+      if (isPinned) {
+        chatItem.insertAdjacentHTML('afterbegin', '<svg class="pin-mark" viewBox="0 0 24 24"><path d="M14 3l7 7-3 1-3 3 .5 5-1.5 1.5-4-4-5 5-1-1 5-5-4-4L7 11l5 .5 3-3 1-3z"/></svg>');
+      }
+
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'pin-chat-btn';
+      pinBtn.title = isPinned ? 'Unpin chat' : 'Pin chat';
+      pinBtn.setAttribute('aria-label', pinBtn.title);
+      pinBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 3l7 7-3 1-3 3 .5 5-1.5 1.5-4-4-5 5-1-1 5-5-4-4L7 11l5 .5 3-3 1-3z"/></svg>';
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const set = getPinned();
+        if (set.has(chat.id)) set.delete(chat.id); else set.add(chat.id);
+        setPinned(set);
+        loadRecentChats();
+      });
+
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-chat-btn';
       deleteBtn.title = 'Delete chat';
@@ -824,6 +901,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         if (!window.electronAPI) return;
         await window.electronAPI.deleteConversation(chat.id);
+        const pins = getPinned();
+        if (pins.delete(chat.id)) setPinned(pins);
         if (chat.id === activeConversationId) {
           activeConversationId = null;
           document.getElementById('clear-chat-btn')?.click();
@@ -832,6 +911,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       chatItem.appendChild(titleEl);
+      chatItem.appendChild(pinBtn);
       chatItem.appendChild(deleteBtn);
       chatItem.addEventListener('click', () => loadConversation(chat.id, chat.title));
       recentsContainer.appendChild(chatItem);
@@ -840,8 +920,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadConversation(conversationId, conversationTitle) {
     if (!window.electronAPI) return;
+    // Only show a skeleton if loading takes a noticeable moment
+    const skeletonTimer = setTimeout(() => {
+      hideWelcome();
+      resultsDiv.innerHTML = '<div class="skeleton"><span></span><span></span><span></span><span></span><span></span></div>';
+    }, 150);
     try {
       const messages = await window.electronAPI.getConversationMessages(conversationId);
+      clearTimeout(skeletonTimer);
       activeConversationId = conversationId;
       hideWelcome();
       resultsDiv.innerHTML = '';
@@ -869,6 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
     } catch (err) {
+      clearTimeout(skeletonTimer);
       console.error('Failed to load conversation:', err);
     }
   }

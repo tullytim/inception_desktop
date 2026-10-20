@@ -1,5 +1,5 @@
 {
-  "version": "1.0.19",
+  "version": "1.1.0",
   "main": "main.js",
   "name": "inception",
   "productName": "Inception",
@@ -40,7 +40,7 @@
     "mac": {
       "icon": "assets/512-mac.png",
       "category": "public.app-category.productivity",
-      "identity": "479D9E8C16D4252131A6F65507C6004E7B14CE88",
+      "identity": "3BEB5DD67FA23DB5DF3EE2560A5F50CB39BBFB36",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "entitlements.mac.plist",
@@ -80,13 +80,13 @@
     }
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
-    "electron-updater": "^6.8.3"
+    "better-sqlite3": "^12.11.1",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
-    "electron": "^40.8.0",
-    "electron-builder": "^26.0.12",
+    "@electron/rebuild": "^4.2.1",
+    "electron": "^40.10.6",
+    "electron-builder": "^26.15.3",
     "electron-rebuild": "^3.2.9"
   },
   "overrides": {
