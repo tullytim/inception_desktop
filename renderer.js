@@ -521,6 +521,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let fullReply = '';
     let fullReasoning = '';
+
+    // Render markdown as it streams, at most once per frame. Highlighting, math and
+    // diagrams wait for the final pass.
+    let renderQueued = false;
+    function scheduleStreamRender() {
+      if (renderQueued) return;
+      renderQueued = true;
+      requestAnimationFrame(() => {
+        renderQueued = false;
+        streamingEl.innerHTML = sanitize(marked.parse(fullReply));
+        assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+      });
+    }
     let usage = null;
     let errored = false;
 
@@ -567,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const token = chunk.choices?.[0]?.delta?.content;
               if (token) {
                 fullReply += token;
-                streamingEl.textContent = fullReply;
+                scheduleStreamRender();
                 assistantRow.scrollIntoView({ behavior: 'instant', block: 'nearest' });
               }
               if (chunk.usage) usage = chunk.usage;
@@ -577,7 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         const b = await res.json();
         fullReply = b.choices?.[0]?.message?.content || '';
-        if (fullReply) streamingEl.textContent = fullReply;
         if (b.usage) usage = b.usage;
       }
     } catch (err) {
@@ -594,7 +606,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Remove streaming cursor class
+    // Remove streaming cursor class; stop any queued frame from touching the removed element
+    renderQueued = true;
     streamingEl.classList.remove('active');
 
     // Final render
