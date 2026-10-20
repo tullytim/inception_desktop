@@ -50,7 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + 'px';
     chatInput.style.overflowY = chatInput.scrollHeight > 160 ? 'auto' : 'hidden';
   }
-  chatInput.addEventListener('input', autoGrow);
+  function updateSendState() {
+    submitBtn.disabled = !chatInput.value.trim();
+  }
+  chatInput.addEventListener('input', () => { autoGrow(); updateSendState(); });
 
   chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -59,58 +62,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const mainContent = document.getElementById('main-content');
+
   function hideWelcome() {
     if (welcomeState) welcomeState.style.display = 'none';
+    mainContent.classList.remove('is-empty');
   }
 
-  (function() {
-    const allPrompts = [
-      { icon: '✨', label: 'Explain quantum computing in simple terms' },
-      { icon: '💻', label: 'Write a Python function to sort a list' },
-      { icon: '🚀', label: 'Best practices for REST APIs?' },
-      { icon: '🐛', label: 'Help me debug a segmentation fault' },
-      { icon: '🎨', label: 'Design a color palette for a dark-themed app' },
-      { icon: '🧠', label: 'Explain how neural networks learn' },
-      { icon: '🔒', label: 'How do I securely store passwords?' },
-      { icon: '📈', label: 'Analyze the time complexity of my algorithm' },
-      { icon: '⚡', label: 'How can I make my website load faster?' },
-      { icon: '🛠', label: 'Help me set up a CI/CD pipeline' },
-      { icon: '🤖', label: 'Build a Discord bot in JavaScript' },
-      { icon: '🗃', label: 'Design a database schema for an e-commerce app' },
-      { icon: '🌐', label: 'Explain how DNS works step by step' },
-      { icon: '📱', label: 'Make this layout responsive for mobile' },
-      { icon: '🧪', label: 'Write unit tests for my function' },
-      { icon: '🔍', label: 'Review my code for security vulnerabilities' },
-      { icon: '💡', label: 'Suggest a tech stack for a startup MVP' },
-      { icon: '📝', label: 'Write a clear README for my project' },
-      { icon: '🧱', label: 'Explain microservices vs monoliths' },
-      { icon: '🎲', label: 'Build a simple game with HTML Canvas' },
-      { icon: '🔗', label: 'How do I use WebSockets for real-time data?' },
-      { icon: '📊', label: 'Visualize this data with a chart in Python' },
-      { icon: '🤔', label: 'What is the difference between SQL and NoSQL?' },
-      { icon: '🚢', label: 'Help me containerize my app with Docker' },
+  function showWelcome() {
+    if (welcomeState) welcomeState.style.display = '';
+    mainContent.classList.add('is-empty');
+    renderWelcome();
+  }
+
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 5) return 'Still up?';
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  function renderWelcome() {
+    const title = document.getElementById('welcome-title');
+    if (title) title.textContent = greeting();
+
+    const h = new Date().getHours();
+    const timely = h < 12
+      ? ['Help me plan my day', 'Give me a quick breakfast idea']
+      : h < 18
+        ? ['Help me write a polite email', 'Suggest a 15-minute workout']
+        : ['Suggest an easy dinner for tonight', 'Recommend something to watch'];
+    const general = [
+      'Explain how black holes work',
+      'Plan a weekend trip to Lisbon',
+      'Help me prepare for a job interview',
+      'Write a short poem about autumn',
+      'Teach me something surprising',
+      'Summarize the pros and cons of renting vs buying',
+      'Write a Python script to rename files',
+      'Help me debug an error message',
+      'Explain how neural networks learn',
+      'Brainstorm names for a small business',
+      'Give me a study plan for learning Spanish',
+      'Help me make sense of a confusing contract',
     ];
-    for (let i = allPrompts.length - 1; i > 0; i--) {
+    for (let i = general.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [allPrompts[i], allPrompts[j]] = [allPrompts[j], allPrompts[i]];
+      [general[i], general[j]] = [general[j], general[i]];
     }
+    const picks = [timely[Math.floor(Math.random() * timely.length)], ...general.slice(0, 3)];
     const container = document.getElementById('welcome-prompts');
-    if (container) {
-      allPrompts.slice(0, 4).forEach(p => {
-        const btn = document.createElement('button');
-        btn.className = 'welcome-prompt-btn';
-        btn.dataset.prompt = p.label;
-        btn.innerHTML = '<span class="prompt-icon">' + p.icon + '</span>' + p.label;
-        container.appendChild(btn);
-      });
-    }
-  })();
+    if (!container) return;
+    container.innerHTML = '';
+    picks.forEach(label => {
+      const btn = document.createElement('button');
+      btn.className = 'welcome-prompt-btn';
+      btn.dataset.prompt = label;
+      btn.textContent = label;
+      container.appendChild(btn);
+    });
+  }
+  renderWelcome();
 
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.welcome-prompt-btn');
     if (!btn) return;
     chatInput.value = btn.dataset.prompt;
     autoGrow();
+    updateSendState();
     chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
   });
 
@@ -118,16 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'message-row assistant';
     row.id = 'typing-indicator-row';
-    const label = document.createElement('div');
-    label.className = 'message-label';
-    label.textContent = 'Inception';
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     const dots = document.createElement('div');
     dots.className = 'typing-indicator';
     dots.innerHTML = '<span></span><span></span><span></span>';
     bubble.appendChild(dots);
-    row.appendChild(label);
     row.appendChild(bubble);
     resultsDiv.appendChild(row);
     row.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -203,6 +219,44 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof Prism !== 'undefined') Prism.highlightAllUnder(bubble);
   }
 
+  const ICONS = {
+    copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>',
+    edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    retry: '<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v5h-5"/></svg>',
+  };
+
+  function actionButton(className, title, icon) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `msg-action-btn ${className}`;
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    btn.innerHTML = icon;
+    return btn;
+  }
+
+  // Hover action row under a message. getText returns the raw message text for copying.
+  function createActions(role, getText) {
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+
+    const copyBtn = actionButton('copy-msg-btn', 'Copy', ICONS.copy);
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(getText()).then(() => {
+        copyBtn.innerHTML = ICONS.check;
+        copyBtn.title = 'Copied';
+        setTimeout(() => { copyBtn.innerHTML = ICONS.copy; copyBtn.title = 'Copy'; }, 1500);
+      });
+    });
+    actions.appendChild(copyBtn);
+
+    if (role === 'user') {
+      actions.appendChild(actionButton('edit-btn', 'Edit message', ICONS.edit));
+    }
+    return actions;
+  }
+
   const VALID_ROLES = ['user', 'assistant'];
 
   function createMessageElement(role, htmlContent, rawContent, time = null) {
@@ -211,42 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
     row.className = `message-row ${safeRole}`;
     if (rawContent !== undefined) row.dataset.raw = rawContent;
 
-    const label = document.createElement('div');
-    label.className = 'message-label';
-    label.textContent = safeRole === 'user' ? 'You' : 'Inception';
-
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
     bubble.innerHTML = sanitize(htmlContent);
 
-    const actions = document.createElement('div');
-    actions.className = 'message-actions';
-
-    // Copy button for all messages
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'msg-action-btn copy-msg-btn';
-    copyBtn.title = 'Copy message';
-    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy';
-    copyBtn.addEventListener('click', () => {
-      const text = row.dataset.raw || bubble.innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        copyBtn.innerHTML = copyBtn.innerHTML.replace('Copy', 'Copied!');
-        setTimeout(() => { copyBtn.innerHTML = copyBtn.innerHTML.replace('Copied!', 'Copy'); }, 1500);
-      });
-    });
-    actions.appendChild(copyBtn);
-
-    if (safeRole === 'user') {
-      const editBtn = document.createElement('button');
-      editBtn.className = 'msg-action-btn edit-btn';
-      editBtn.title = 'Edit message';
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Edit';
-      actions.appendChild(editBtn);
-    }
-
-    row.appendChild(label);
     row.appendChild(bubble);
-    row.appendChild(actions);
+    row.appendChild(createActions(safeRole, () => row.dataset.raw || bubble.innerText));
 
     if (time) {
       const timeEl = document.createElement('span');
@@ -265,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let isGenerating = false;
   let currentAbortController = null;
   let allRecentChats = [];
+  let activeConversationId = null;
 
   function setGenerating(val) {
     isGenerating = val;
@@ -287,6 +312,53 @@ document.addEventListener('DOMContentLoaded', () => {
     return compacted;
   }
 
+  // Inline notice in the conversation. actions: [{ label, primary, onClick }]
+  function showNotice(kind, title, text, actions = []) {
+    const box = document.createElement('div');
+    box.className = `notice ${kind}`;
+    const body = document.createElement('div');
+    body.className = 'notice-body';
+    const t = document.createElement('div');
+    t.className = 'notice-title';
+    t.textContent = title;
+    const p = document.createElement('div');
+    p.className = 'notice-text';
+    p.textContent = text;
+    body.appendChild(t);
+    body.appendChild(p);
+    if (actions.length) {
+      const row = document.createElement('div');
+      row.className = 'notice-actions';
+      actions.forEach(a => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `btn ${a.primary ? 'btn-primary' : 'btn-secondary'}`;
+        b.textContent = a.label;
+        b.addEventListener('click', a.onClick);
+        row.appendChild(b);
+      });
+      body.appendChild(row);
+    }
+    box.appendChild(body);
+    resultsDiv.appendChild(box);
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return box;
+  }
+
+  function friendlyError(err, status) {
+    if (status === 401 || status === 403) return { title: 'Your API key was rejected', text: 'Check that the key in Settings is correct and still active.', settings: true };
+    if (status === 429) return { title: "You're going a little fast", text: 'Too many requests right now. Wait a moment and try again.' };
+    if (status >= 500) return { title: 'The service is having trouble', text: "That's on their end. Try again in a minute." };
+    if (err && (err.name === 'TypeError' || /failed to fetch|network/i.test(err.message || ''))) {
+      return { title: "Couldn't connect", text: 'Check your internet connection and try again.' };
+    }
+    return { title: 'Something went wrong', text: (err && err.message) || 'Please try again.' };
+  }
+
+  function openSettings() {
+    document.getElementById('settings-btn')?.click();
+  }
+
   function showWarning(title, message) {
     const warnModal = document.getElementById('warning-modal');
     document.getElementById('warning-modal-title').textContent = title;
@@ -303,9 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!used) return;
     const pct = Math.min(100, (used / MODEL_CONTEXT_WINDOW) * 100);
     fill.style.width = pct + '%';
-    fill.style.background = pct > 80 ? '#f59e0b' : pct > 60 ? '#6ee7b7' : 'var(--accent-green)';
-    text.textContent = `${used.toLocaleString()} / ${MODEL_CONTEXT_WINDOW.toLocaleString()} tokens`;
-    bar.style.display = 'flex';
+    const long = pct >= 70;
+    bar.classList.toggle('warn', long);
+    text.textContent = long ? 'This conversation is getting long. Start a new chat for best results.' : '';
   }
 
   function attachRegenerateButton() {
@@ -316,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRow.className = 'regenerate-btn-row';
     const btn = document.createElement('button');
     btn.className = 'regenerate-btn';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Regenerate';
+    btn.innerHTML = ICONS.retry + ' Try again';
     btn.addEventListener('click', handleRegenerate);
     btnRow.appendChild(btn);
     resultsDiv.appendChild(btnRow);
@@ -363,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function runRequest() {
-    let settings = { apiKey: '', model: modelSelect.value || 'mercury-2', maxTokens: 32768, systemPrompt: '' };
+    let settings = { apiKey: '', model: modelSelect.value || 'mercury-3', maxTokens: 32768, systemPrompt: '' };
     if (window.electronAPI) {
       try { settings = await window.electronAPI.loadSettings(); } catch (e) {}
     }
@@ -373,23 +445,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const useOpenRouter = !hasInceptionKey && hasOpenRouterKey;
     const activeApiUrl = useOpenRouter ? OPENROUTER_API_URL : INCEPTION_API_URL;
     const activeApiKey = useOpenRouter ? settings.openRouterApiKey.trim() : settings.apiKey.trim();
-    const model = (settings.model === 'mercury' ? 'mercury-2' : settings.model) || modelSelect.value || 'mercury-2';
+    const model = (settings.model === 'mercury' ? 'mercury-3' : settings.model) || modelSelect.value || 'mercury-3';
     const maxTokens = settings.maxTokens || 32768;
 
     let resolvedModel;
     if (useOpenRouter) {
-      const map = { 'mercury-2': 'inception/mercury-2' };
+      const map = { 'mercury-3': 'inception/mercury-3', 'mercury-2': 'inception/mercury-2' };
       if (!map[model]) {
         showWarning('Model Not Available on OpenRouter',
-          `"${model}" is not available on OpenRouter. Switch to Mercury 2.`);
+          `"${model}" is not available on OpenRouter. Switch to Mercury 3.`);
         return;
       }
       resolvedModel = map[model];
     } else {
-      const map = { 'mercury-2': 'mercury-2' };
+      const map = { 'mercury-3': 'mercury-3', 'mercury-2': 'mercury-2' };
       if (!map[model]) {
         showWarning('Model Not Available',
-          `"${model}" is not available. Switch to Mercury 2.`);
+          `"${model}" is not available. Switch to Mercury 3.`);
         return;
       }
       resolvedModel = map[model];
@@ -407,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
       messages,
       max_tokens: maxTokens,
       stream: true,
-      ...(model === 'mercury-2' && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
+      ...((model === 'mercury-2' || model === 'mercury-3') && reasoningToggle?.checked ? { reasoning_effort: 'instant' } : {})
     };
 
     const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeApiKey}` };
@@ -419,9 +491,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Build assistant row
     const assistantRow = document.createElement('div');
     assistantRow.className = 'message-row assistant';
-    const assistantLabel = document.createElement('div');
-    assistantLabel.className = 'message-label';
-    assistantLabel.textContent = 'Inception';
     const assistantBubble = document.createElement('div');
     assistantBubble.className = 'message-bubble';
 
@@ -441,7 +510,6 @@ document.addEventListener('DOMContentLoaded', () => {
     streamingEl.className = 'streaming-text active';
     assistantBubble.appendChild(streamingEl);
 
-    assistantRow.appendChild(assistantLabel);
     assistantRow.appendChild(assistantBubble);
 
     hideTypingIndicator();
@@ -467,7 +535,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) {
         let errMsg = `API error (${res.status})`;
         try { const b = await res.json(); if (b.error?.message) errMsg = typeof b.error.message === 'string' ? b.error.message : JSON.stringify(b.error); } catch {}
-        throw new Error(errMsg);
+        const apiErr = new Error(errMsg);
+        apiErr.status = res.status;
+        throw apiErr;
       }
 
       const contentType = res.headers.get('content-type') || '';
@@ -514,11 +584,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (err.name !== 'AbortError') {
         errored = true;
         assistantRow.remove();
-        const errDiv = document.createElement('div');
-        errDiv.style.color = '#ff6b6b';
-        errDiv.innerHTML = '<b>Error:</b> ';
-        errDiv.appendChild(document.createTextNode(err.message));
-        resultsDiv.appendChild(errDiv);
+        const info = friendlyError(err, err.status);
+        const actions = [{ label: 'Try again', primary: !info.settings, onClick: (e) => { e.currentTarget.closest('.notice').remove(); if (!isGenerating) { showTypingIndicator(); runRequest(); } } }];
+        if (info.settings) actions.unshift({ label: 'Open Settings', primary: true, onClick: openSettings });
+        showNotice('error', info.title, info.text, actions);
         setGenerating(false);
         currentAbortController = null;
         return;
@@ -557,20 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add action buttons and timestamp to assistant message
     if (fullReply) {
       assistantRow.dataset.raw = fullReply;
-      const actions = document.createElement('div');
-      actions.className = 'message-actions';
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'msg-action-btn copy-msg-btn';
-      copyBtn.title = 'Copy message';
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy';
-      copyBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(fullReply).then(() => {
-          copyBtn.innerHTML = copyBtn.innerHTML.replace('Copy', 'Copied!');
-          setTimeout(() => { copyBtn.innerHTML = copyBtn.innerHTML.replace('Copied!', 'Copy'); }, 1500);
-        });
-      });
-      actions.appendChild(copyBtn);
-      assistantRow.appendChild(actions);
+      assistantRow.appendChild(createActions('assistant', () => fullReply));
 
       const timeEl = document.createElement('span');
       timeEl.className = 'msg-time';
@@ -634,14 +690,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key === 'k') {
+    if (mod && e.key === 'n' && !window.electronAPI?.onMenuCommand) {
       e.preventDefault();
       // New chat
       resultsDiv.innerHTML = '';
       chatInput.value = '';
       conversationHistory = [];
       setConversationTitle('');
-      if (welcomeState) welcomeState.style.display = '';
+      showWelcome();
       if (window.electronAPI) window.electronAPI.newChat().catch(() => {});
       setTimeout(loadRecentChats, 100);
     }
@@ -662,7 +718,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('refreshRecentChats', loadRecentChats);
   document.addEventListener('clearConversationHistory', () => {
     conversationHistory = [];
+    activeConversationId = null;
     setConversationTitle('');
+    showWelcome();
   });
 
   if (window.electronAPI && window.electronAPI.onMenuCommand) {
@@ -670,10 +728,12 @@ document.addEventListener('DOMContentLoaded', () => {
       resultsDiv.innerHTML = '';
       chatInput.value = '';
       conversationHistory = [];
+      activeConversationId = null;
       setConversationTitle('');
-      if (welcomeState) welcomeState.style.display = '';
+      showWelcome();
       if (window.electronAPI) window.electronAPI.newChat();
       setTimeout(loadRecentChats, 100);
+      chatInput.focus();
     });
   }
 
@@ -690,46 +750,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker
+  function parseDbDate(value) {
+    if (!value) return new Date(NaN);
+    return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : value.replace(' ', 'T') + 'Z');
+  }
+
+  function dateGroup(date) {
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const days = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return 'Previous 7 days';
+    if (days < 30) return 'Previous 30 days';
+    return 'Older';
+  }
+
   function displayRecentChats(chats) {
     const recentsContainer = document.getElementById('recents-list');
     if (!recentsContainer) return;
     recentsContainer.innerHTML = '';
     if (!chats || chats.length === 0) {
-      recentsContainer.innerHTML = '<div style="padding: 12px 20px; color: #b0b3c0; font-size: 0.9em;">No recent chats</div>';
+      const empty = document.createElement('div');
+      empty.className = 'recents-empty';
+      empty.textContent = document.getElementById('chat-search')?.value ? 'No matching chats' : 'Your chats will show up here';
+      recentsContainer.appendChild(empty);
       return;
     }
+    let lastGroup = null;
     chats.forEach(chat => {
+      const group = dateGroup(parseDbDate(chat.updated_at));
+      if (group !== lastGroup) {
+        const heading = document.createElement('div');
+        heading.className = 'recents-group-title';
+        heading.textContent = group;
+        recentsContainer.appendChild(heading);
+        lastGroup = group;
+      }
+
       const chatItem = document.createElement('div');
       chatItem.className = 'recent-chat-item';
+      if (chat.id === activeConversationId) chatItem.classList.add('active');
       chatItem.dataset.conversationId = chat.id;
 
       const title = chat.title ||
         (chat.first_message
           ? (chat.first_message.length > 40 ? chat.first_message.substring(0, 40) + '...' : chat.first_message)
-          : 'New Chat');
-
-      const date = new Date(chat.updated_at).toLocaleDateString();
+          : 'New chat');
 
       const titleEl = document.createElement('div');
       titleEl.className = 'recent-chat-title';
       titleEl.textContent = title;
-      const dateEl = document.createElement('div');
-      dateEl.className = 'recent-chat-date';
-      dateEl.textContent = date;
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-chat-btn';
-      deleteBtn.title = 'Delete conversation';
-      deleteBtn.textContent = '\u00d7';
+      deleteBtn.title = 'Delete chat';
+      deleteBtn.setAttribute('aria-label', 'Delete chat');
+      deleteBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (!window.electronAPI) return;
         await window.electronAPI.deleteConversation(chat.id);
+        if (chat.id === activeConversationId) {
+          activeConversationId = null;
+          document.getElementById('clear-chat-btn')?.click();
+        }
         loadRecentChats();
       });
 
       chatItem.appendChild(titleEl);
-      chatItem.appendChild(dateEl);
       chatItem.appendChild(deleteBtn);
       chatItem.addEventListener('click', () => loadConversation(chat.id, chat.title));
       recentsContainer.appendChild(chatItem);
@@ -740,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!window.electronAPI) return;
     try {
       const messages = await window.electronAPI.getConversationMessages(conversationId);
+      activeConversationId = conversationId;
       hideWelcome();
       resultsDiv.innerHTML = '';
       conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
@@ -759,6 +849,9 @@ document.addEventListener('DOMContentLoaded', () => {
         attachRegenerateButton();
       }
 
+      document.querySelectorAll('.recent-chat-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.conversationId === String(conversationId));
+      });
       setTimeout(() => {
         if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 0);
@@ -782,21 +875,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasOpenRouterKey = settings.openRouterApiKey?.trim();
 
     if (!hasInceptionKey && !hasOpenRouterKey) {
-      const errBox = document.createElement('div');
-      errBox.style.cssText = 'padding:20px;margin:20px 0;background:#2d1b1b;border:1px solid #dc3545;border-radius:8px;color:#f8d7da;';
-      const heading = document.createElement('h3');
-      heading.style.cssText = 'margin:0 0 10px 0;color:#dc3545;';
-      heading.textContent = '\u26a0\ufe0f API Key Required';
-      const p1 = document.createElement('p');
-      p1.style.margin = '0';
-      p1.textContent = 'Please set an Inception Labs or OpenRouter API key in the settings before making requests.';
-      const p2 = document.createElement('p');
-      p2.style.cssText = 'margin:10px 0 0 0;font-size:0.9em;opacity:0.8;';
-      p2.textContent = 'Click the settings button (\u2699\ufe0f) at the bottom to configure your API key.';
-      errBox.appendChild(heading);
-      errBox.appendChild(p1);
-      errBox.appendChild(p2);
-      resultsDiv.appendChild(errBox);
+      hideWelcome();
+      showNotice('', 'Add an API key to get started', 'Inception needs a key to talk to the model. It takes a few seconds.', [
+        { label: 'Open Settings', primary: true, onClick: openSettings },
+      ]);
       resultsDiv.scrollTop = resultsDiv.scrollHeight;
       return;
     }
@@ -814,6 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.value = '';
     chatInput.style.height = 'auto';
     autoGrow();
+    updateSendState();
 
     conversationHistory.push({ role: 'user', content: userMsg });
 

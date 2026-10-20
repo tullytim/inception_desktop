@@ -24,6 +24,7 @@ A desktop chat application for [Inception Labs](https://inceptionlabs.ai) Mercur
 | Model | Inception Labs | OpenRouter |
 |---|---|---|
 | Mercury | ✓ (`mercury-edit`) | ✓ (`inception/mercury`) |
+| Mercury 3 | ✓ (`mercury-3`) | ✓ (`inception/mercury-3`) |
 | Mercury 2 | ✓ (`mercury-2`) | — |
 | Mercury Coder | — | ✓ (`inception/mercury-coder`) |
 

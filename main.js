@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-const { app, BrowserWindow, Menu, Tray, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, Tray, ipcMain, dialog, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 const Database = require('better-sqlite3');
@@ -95,10 +95,16 @@ function createWindow() {
   initDatabase();
   
   // Create browser window
+  const isMac = process.platform === 'darwin';
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 520,
+    minHeight: 480,
     titleBarStyle: 'hiddenInset', // Extend content to full window height (macOS)
+    trafficLightPosition: { x: 18, y: 18 },
+    // Frosted-glass sidebar on macOS; the renderer paints its own opaque background elsewhere
+    ...(isMac ? { vibrancy: 'sidebar', visualEffectState: 'active', backgroundColor: '#00000000' } : {}),
     webPreferences: {
       nodeIntegration: false,    // Security best practice
       contextIsolation: true,    // Security best practice
@@ -127,8 +133,8 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
+  // Open DevTools only when requested (e.g. OPEN_DEVTOOLS=1 npm run dev)
+  if (process.env.OPEN_DEVTOOLS) {
     mainWindow.webContents.openDevTools();
   }
 
@@ -684,10 +690,15 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
 });
 
-const ALLOWED_MODELS = ['mercury', 'mercury-2'];
+const ALLOWED_MODELS = ['mercury', 'mercury-2', 'mercury-3'];
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful, accurate, and concise AI assistant. Answer questions clearly and directly. Acknowledge uncertainty when you're unsure about something.`;
 const ALLOWED_THEMES = ['dark', 'light', 'auto'];
 const MAX_TOKENS_LIMIT = 50000;
+
+// Keep native chrome (vibrancy, scrollbars, menus) in step with the in-app theme
+function applyNativeTheme(theme) {
+  nativeTheme.themeSource = theme === 'light' ? 'light' : theme === 'dark' ? 'dark' : 'system';
+}
 
 // Settings file handlers
 ipcMain.handle('settings:save', async (event, settings) => {
@@ -729,6 +740,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
     if (settings.theme !== undefined) {
       if (!ALLOWED_THEMES.includes(settings.theme)) return false;
       safeSettings.theme = settings.theme;
+      applyNativeTheme(settings.theme);
     }
     if (settings.systemPrompt !== undefined) {
       if (typeof settings.systemPrompt !== 'string') return false;
@@ -745,7 +757,7 @@ ipcMain.handle('settings:save', async (event, settings) => {
 });
 
 ipcMain.handle('settings:load', async () => {
-  const defaults = { model: 'mercury-2', maxTokens: 32768, theme: 'dark', systemPrompt: DEFAULT_SYSTEM_PROMPT };
+  const defaults = { model: 'mercury-3', maxTokens: 32768, theme: 'auto', systemPrompt: DEFAULT_SYSTEM_PROMPT };
 
   // Load non-key settings from userData/settings.json
   let otherSettings = { ...defaults };
@@ -760,6 +772,7 @@ ipcMain.handle('settings:load', async () => {
       if (Number.isInteger(t) && t >= 1 && t <= MAX_TOKENS_LIMIT) otherSettings.maxTokens = t;
     }
     if (parsed.theme && ALLOWED_THEMES.includes(parsed.theme)) otherSettings.theme = parsed.theme;
+    applyNativeTheme(otherSettings.theme);
     if (typeof parsed.systemPrompt === 'string') otherSettings.systemPrompt = parsed.systemPrompt.substring(0, 2000) || DEFAULT_SYSTEM_PROMPT;
   } catch (e) {
     // use defaults

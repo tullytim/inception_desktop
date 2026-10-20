@@ -13,7 +13,7 @@ test('package.json is valid and has expected fields', () => {
 });
 
 test('entry point files exist', () => {
-  for (const file of ['main.js', 'preload.js', 'renderer.js', 'index.html']) {
+  for (const file of ['main.js', 'preload.js', 'renderer.js', 'index.html', 'styles.css']) {
     assert.ok(fs.existsSync(path.join(root, file)), `${file} should exist`);
   }
 });

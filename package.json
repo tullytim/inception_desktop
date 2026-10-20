@@ -32,6 +32,7 @@
       "marked-config.js",
       "app.js",
       "index.html",
+      "styles.css",
       "package.json",
       "assets/",
       "images/"

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFile: (content) => ipcRenderer.invoke('dialog:saveFile', content),
   
   // System info
+  platform: process.platform,
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   
   // Custom events

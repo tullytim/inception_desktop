@@ -1,5 +1,6 @@
 const MODEL_MAX_TOKENS = {
   'mercury': 50000,
+  'mercury-3': 50000,
   'mercury-2': 50000,
   'mercury-coder': 50000,
 };
@@ -8,7 +9,7 @@ function getMaxTokensForModel(model) {
 }
 function updateReasoningToggleVisibility(model) {
   const wrap = document.getElementById('reasoning-toggle-wrap');
-  wrap.style.display = model === 'mercury-2' ? 'flex' : 'none';
+  wrap.style.display = (model === 'mercury-2' || model === 'mercury-3') ? 'flex' : 'none';
 }
 
 function applyMaxTokensForModel(model) {
@@ -21,67 +22,123 @@ function applyMaxTokensForModel(model) {
   if (parseInt(input.value) > max) input.value = max;
 }
 
-// Sidebar toggle functionality
-const hamburgerBtn = document.getElementById('hamburger-btn');
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebar-overlay');
-const mainContent = document.getElementById('main-content');
-
-function toggleSidebar() {
-  const isOpen = sidebar.classList.contains('open');
-
-  if (isOpen) {
-    sidebar.classList.remove('open');
-    sidebarOverlay.classList.remove('open');
-    mainContent.classList.remove('sidebar-open');
-    hamburgerBtn.classList.remove('sidebar-open');
-  } else {
-    sidebar.classList.add('open');
-    sidebarOverlay.classList.add('open');
-    mainContent.classList.add('sidebar-open');
-    hamburgerBtn.classList.add('sidebar-open');
-  }
+// Platform class lets CSS use native vibrancy only on macOS
+if (window.electronAPI && window.electronAPI.platform) {
+  document.body.classList.add(`platform-${window.electronAPI.platform}`);
 }
 
-hamburgerBtn.addEventListener('click', toggleSidebar);
+// Sidebar: open by default on wide windows, remembers the user's choice
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const NARROW_WIDTH = 720;
+
+function setSidebarCollapsed(collapsed, remember = true) {
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+  if (!remember) return;
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+}
+
+function toggleSidebar() {
+  setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+}
+
+(function initSidebar() {
+  let saved = null;
+  try { saved = localStorage.getItem('sidebarCollapsed'); } catch (e) {}
+  const collapsed = window.innerWidth <= NARROW_WIDTH || saved === '1';
+  // Defer a frame so the initial state doesn't animate
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+})();
+
+sidebarToggle.addEventListener('click', toggleSidebar);
 sidebarOverlay.addEventListener('click', toggleSidebar);
 
-// Sidebar menu actions
-document.querySelectorAll('.sidebar-item').forEach(item => {
-  item.addEventListener('click', (e) => {
-    // Remove active class from all items
-    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
-    // Add active class to clicked item
-    e.target.classList.add('active');
+function startNewChat() {
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('chat-input').value = '';
+  document.getElementById('chat-input').dispatchEvent(new Event('input'));
+  const ws = document.getElementById('welcome-state');
+  if (ws) ws.style.display = '';
+  document.getElementById('main-content').classList.add('is-empty');
+  document.dispatchEvent(new CustomEvent('clearConversationHistory'));
+  if (window.electronAPI) {
+    window.electronAPI.newChat();
+  }
+  setTimeout(() => {
+    document.dispatchEvent(new CustomEvent('refreshRecentChats'));
+  }, 100);
+  document.getElementById('chat-input').focus();
+}
 
-    const action = e.target.dataset.action;
-    switch(action) {
-      case 'new-chat':
-        document.getElementById('results').innerHTML = '';
-        document.getElementById('chat-input').value = '';
-        const ws = document.getElementById('welcome-state');
-        if (ws) ws.style.display = '';
-        document.dispatchEvent(new CustomEvent('clearConversationHistory'));
-        if (window.electronAPI) {
-          window.electronAPI.newChat();
-        }
-        setTimeout(() => {
-          document.dispatchEvent(new CustomEvent('refreshRecentChats'));
-        }, 100);
-        break;
-      case 'recents':
-        // TODO: Show recent chats
-        break;
-      case 'settings':
-        settingsBtn.click();
-        break;
-    }
+document.querySelector('[data-action="new-chat"]').addEventListener('click', () => {
+  startNewChat();
+  if (window.innerWidth <= NARROW_WIDTH) setSidebarCollapsed(true, false);
+});
 
-    // Close sidebar on mobile after selection
-    if (window.innerWidth <= 768) {
-      toggleSidebar();
-    }
+// Model picker: a friendly pill that drives the hidden <select>
+const modelPill = document.getElementById('model-pill');
+const modelMenu = document.getElementById('model-menu');
+const modelMenuItems = document.getElementById('model-menu-items');
+
+function syncModelPill() {
+  const sel = document.getElementById('model-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt) document.getElementById('model-pill-label').textContent = opt.textContent;
+  modelMenuItems.querySelectorAll('.popover-item').forEach(item => {
+    item.classList.toggle('selected', item.dataset.value === sel.value);
   });
+}
+
+function setModelMenuOpen(open) {
+  modelMenu.classList.toggle('open', open);
+  modelPill.setAttribute('aria-expanded', String(open));
+}
+
+(function initModelMenu() {
+  const sel = document.getElementById('model-select');
+  Array.from(sel.options).forEach(opt => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'popover-item';
+    item.dataset.value = opt.value;
+    item.setAttribute('role', 'menuitemradio');
+    item.innerHTML = '<span></span><svg class="check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>';
+    item.firstChild.textContent = opt.textContent;
+    item.addEventListener('click', () => {
+      sel.value = opt.value;
+      sel.dispatchEvent(new Event('change'));
+      syncModelPill();
+      setModelMenuOpen(false);
+    });
+    modelMenuItems.appendChild(item);
+  });
+  syncModelPill();
+})();
+
+modelPill.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setModelMenuOpen(!modelMenu.classList.contains('open'));
+});
+document.addEventListener('click', (e) => {
+  if (!modelMenu.contains(e.target)) setModelMenuOpen(false);
+});
+
+// Keyboard shortcuts: ⌘N new chat is handled by the app menu; ⌘K search, ⌘, settings, ⌘B sidebar
+document.addEventListener('keydown', (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (e.key === 'Escape') setModelMenuOpen(false);
+  if (!mod) return;
+  if (e.key === 'k') {
+    e.preventDefault();
+    setSidebarCollapsed(false, false);
+    document.getElementById('chat-search').focus();
+  } else if (e.key === ',') {
+    e.preventDefault();
+    settingsBtn.click();
+  } else if (e.key === 'b') {
+    e.preventDefault();
+    toggleSidebar();
+  }
 });
 
 // Bottom buttons functionality
@@ -90,20 +147,8 @@ const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const modalClose = document.getElementById('modal-close');
 
-// Clear chat functionality
-clearChatBtn.addEventListener('click', () => {
-  document.getElementById('results').innerHTML = '';
-  document.getElementById('chat-input').value = '';
-  const ws = document.getElementById('welcome-state');
-  if (ws) ws.style.display = '';
-  document.dispatchEvent(new CustomEvent('clearConversationHistory'));
-  if (window.electronAPI) {
-    window.electronAPI.newChat();
-  }
-  setTimeout(() => {
-    document.dispatchEvent(new CustomEvent('refreshRecentChats'));
-  }, 100);
-});
+// Header "+" starts a fresh chat
+clearChatBtn.addEventListener('click', startNewChat);
 
 // Settings modal functionality
 settingsBtn.addEventListener('click', async () => {
@@ -113,7 +158,7 @@ settingsBtn.addEventListener('click', async () => {
       const settings = await window.electronAPI.loadSettings();
       document.getElementById('api-key-input').value = settings.apiKey || '';
       document.getElementById('openrouter-key-input').value = settings.openRouterApiKey || '';
-      const currentModel = settings.model || 'mercury-2';
+      const currentModel = settings.model || 'mercury-3';
       document.getElementById('model-setting').value = currentModel;
       applyMaxTokensForModel(currentModel);
       const modelMax = getMaxTokensForModel(currentModel);
@@ -145,6 +190,7 @@ async function closeModal() {
 
       // Update the model dropdown in the main UI
       document.getElementById('model-select').value = settings.model;
+      syncModelPill();
     } catch (error) {
       console.error('Error saving settings:', error);
     }
@@ -163,6 +209,7 @@ document.getElementById('model-setting').addEventListener('change', async functi
 
   // Update the main dropdown immediately
   document.getElementById('model-select').value = selectedModel;
+  syncModelPill();
 
   if (window.electronAPI) {
     try {
@@ -200,8 +247,9 @@ async function loadInitialSettings() {
     try {
       const settings = await window.electronAPI.loadSettings();
       // Set the saved model or default to 'mercury'
-      const savedModel = settings?.model || 'mercury-2';
+      const savedModel = settings?.model || 'mercury-3';
       modelSelect.value = savedModel;
+      syncModelPill();
       updateReasoningToggleVisibility(savedModel);
 
       // Show API key prompt if no key is configured (neither Inception nor OpenRouter)
@@ -212,13 +260,13 @@ async function loadInitialSettings() {
       }
     } catch (error) {
       console.error('Error loading initial settings:', error);
-      modelSelect.value = 'mercury-2';
+      modelSelect.value = 'mercury-3';
       // Show prompt since we couldn't verify any keys exist
       document.getElementById('api-key-modal').classList.add('open');
     }
   } else {
     // Default to 'mercury' if no electronAPI
-    modelSelect.value = 'mercury-2';
+    modelSelect.value = 'mercury-3';
   }
 
   // Add event listener to auto-save when dropdown changes
@@ -229,6 +277,7 @@ async function loadInitialSettings() {
 
     // Update the settings modal dropdown immediately
     document.getElementById('model-setting').value = selectedModel;
+    syncModelPill();
 
     if (window.electronAPI) {
       try {
@@ -309,18 +358,18 @@ if (window.electronAPI) {
     // Safety timeout: re-enable if IPC never resolves
     const safetyTimer = setTimeout(() => {
       btn.disabled = false;
-      statusEl.style.color = '#f87171';
+      statusEl.style.color = 'var(--danger)';
       statusEl.textContent = 'Check timed out';
-      setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = '#6ee7b7'; }, 3000);
+      setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = 'var(--success)'; }, 3000);
     }, 15000);
 
     try {
       const result = await window.electronAPI.checkForUpdates();
       clearTimeout(safetyTimer);
       if (!result || !result.updateInfo) {
-        statusEl.style.color = '#6b7085';
+        statusEl.style.color = 'var(--text-tertiary)';
         statusEl.textContent = 'Up to date';
-        setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = '#6ee7b7'; }, 3000);
+        setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = 'var(--success)'; }, 3000);
       } else {
         // Show the update banner directly — don't rely solely on onUpdateAvailable
         statusEl.style.display = 'none';
@@ -338,9 +387,9 @@ if (window.electronAPI) {
       }
     } catch {
       clearTimeout(safetyTimer);
-      statusEl.style.color = '#f87171';
+      statusEl.style.color = 'var(--danger)';
       statusEl.textContent = 'Check failed';
-      setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = '#6ee7b7'; }, 3000);
+      setTimeout(() => { statusEl.style.display = 'none'; statusEl.style.color = 'var(--success)'; }, 3000);
     }
     btn.disabled = false;
   });
@@ -394,14 +443,14 @@ async function loadInitialTheme() {
   if (window.electronAPI) {
     try {
       const settings = await window.electronAPI.loadSettings();
-      const savedTheme = settings?.theme || 'light';
+      const savedTheme = settings?.theme || 'auto';
       applyTheme(savedTheme);
     } catch (error) {
       console.error('Error loading initial theme:', error);
-      applyTheme('light');
+      applyTheme('auto');
     }
   } else {
-    applyTheme('light');
+    applyTheme('auto');
   }
 }
 
